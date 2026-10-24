@@ -26,6 +26,10 @@ final class AAB_Admin {
 		add_action( 'admin_post_aab_oauth', array( __CLASS__, 'oauth_callback' ) );
 		add_action( 'admin_post_aab_disconnect', array( __CLASS__, 'disconnect' ) );
 		add_action( 'admin_post_aab_cancel_booking', array( __CLASS__, 'cancel_booking' ) );
+		add_action( 'admin_post_aab_export', array( __CLASS__, 'export' ) );
+		add_action( 'admin_post_aab_clear_log', array( __CLASS__, 'clear_log' ) );
+		add_action( 'admin_post_aab_run_now', array( __CLASS__, 'run_now' ) );
+		add_action( 'manage_posts_extra_tablenav', array( __CLASS__, 'export_button' ) );
 		add_filter( 'manage_' . AAB_Bookings::POST_TYPE . '_posts_columns', array( __CLASS__, 'columns' ) );
 		add_action( 'manage_' . AAB_Bookings::POST_TYPE . '_posts_custom_column', array( __CLASS__, 'column' ), 10, 2 );
 		add_filter( 'post_row_actions', array( __CLASS__, 'row_actions' ), 10, 2 );
@@ -234,6 +238,19 @@ final class AAB_Admin {
 		$new['min_notice']    = $int( 'min_notice', 0, 720 );
 		$new['max_days']      = $int( 'max_days', 1, 365 );
 		$new['daily_limit']   = $int( 'daily_limit', 0, 100 );
+		$new['max_per_email'] = $int( 'max_per_email', 0, 50 );
+		$new['reminder_hours'] = $int( 'reminder_hours', 0, 168 );
+		$new['retention_days'] = $int( 'retention_days', 0, 3650 );
+
+		$invalid_days = array();
+		if ( isset( $in['days_off'] ) ) {
+			$new['days_off'] = sanitize_textarea_field( $in['days_off'] );
+			$parsed          = AAB_Settings::parse_days_off( $new['days_off'] );
+			$invalid_days    = $parsed['invalid'];
+		}
+		if ( isset( $in['phone_field'] ) ) {
+			$new['phone_field'] = in_array( $in['phone_field'], array( 'off', 'optional', 'required' ), true ) ? $in['phone_field'] : 'off';
+		}
 
 		foreach ( array( 'event_title', 'location' ) as $key ) {
 			if ( isset( $in[ $key ] ) ) {
@@ -276,6 +293,10 @@ final class AAB_Admin {
 		if ( $credentials_changed && AAB_Google::is_connected() ) {
 			AAB_Google::disconnect();
 			self::back( 'success', __( 'Settings saved. Your Google credentials changed, so connect Google Calendar again.', 'anderson-appointment-booking' ) );
+		}
+		if ( $invalid_days ) {
+			/* translators: %s: lines that could not be read */
+			self::back( 'error', sprintf( __( 'Settings saved, but these days-off lines could not be read and are ignored: %s. Use YYYY-MM-DD or YYYY-MM-DD to YYYY-MM-DD.', 'anderson-appointment-booking' ), implode( '; ', $invalid_days ) ) );
 		}
 		if ( $invalid_hours ) {
 			self::back( 'error', __( 'Settings saved, but some hours could not be read and were cleared. Use 24-hour ranges like 09:00-12:00, 13:00-17:00.', 'anderson-appointment-booking' ) );
@@ -352,6 +373,105 @@ final class AAB_Admin {
 	}
 
 	/**
+	 * "Export CSV" button above the bookings list.
+	 *
+	 * @param string $which top|bottom.
+	 */
+	public static function export_button( $which ) {
+		$screen = get_current_screen();
+		if ( 'top' !== $which || ! $screen || AAB_Bookings::POST_TYPE !== $screen->post_type ) {
+			return;
+		}
+		$url = wp_nonce_url( admin_url( 'admin-post.php?action=aab_export' ), 'aab_export' );
+		echo '<div class="alignleft actions"><a class="button" href="' . esc_url( $url ) . '">' . esc_html__( 'Export CSV', 'anderson-appointment-booking' ) . '</a></div>';
+	}
+
+	/**
+	 * Download all bookings as CSV.
+	 */
+	public static function export() {
+		self::guard( 'aab_export' );
+		$ids = get_posts(
+			array(
+				'post_type'      => AAB_Bookings::POST_TYPE,
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+			)
+		);
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="bookings-' . gmdate( 'Y-m-d' ) . '.csv"' );
+		$out = fopen( 'php://output', 'w' );
+		// Spreadsheet apps would run a cell starting with = + - @ as a formula; neutralize those.
+		$cell = static function ( $value ) {
+			$value = (string) $value;
+			return preg_match( '/^[=+\-@\t\r]/', $value ) ? "'" . $value : $value;
+		};
+		fwrite( $out, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- UTF-8 BOM for Excel.
+		fputcsv( $out, array( 'Start', 'End', 'Timezone', 'Name', 'Email', 'Phone', 'Notes', 'Status', 'Booked', 'Google Calendar event' ), ',', '"', '' );
+		foreach ( $ids as $id ) {
+			$b = AAB_Bookings::get( $id );
+			if ( ! $b ) {
+				continue;
+			}
+			fputcsv(
+				$out,
+				array_map(
+					$cell,
+					array(
+						wp_date( 'Y-m-d H:i', $b['start'] ),
+						wp_date( 'Y-m-d H:i', $b['end'] ),
+						wp_timezone_string(),
+						$b['name'],
+						$b['email'],
+						$b['phone'],
+						$b['notes'],
+						$b['status'],
+						get_post_time( 'Y-m-d H:i', false, $id ),
+						$b['event_link'],
+					)
+				),
+				',',
+				'"',
+				''
+			);
+		}
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+		exit;
+	}
+
+	/**
+	 * Clear the problem log.
+	 */
+	public static function clear_log() {
+		self::guard( 'aab_clear_log' );
+		delete_option( AAB_Google::LOG_OPTION );
+		self::back( 'success', __( 'Problem log cleared.', 'anderson-appointment-booking' ) );
+	}
+
+	/**
+	 * Run the hourly tasks now.
+	 */
+	public static function run_now() {
+		self::guard( 'aab_run_now' );
+		$stats = AAB_Maintenance::run();
+		self::back(
+			'success',
+			sprintf(
+				/* translators: 1: bookings checked, 2: cancelled, 3: moved, 4: reminders sent */
+				__( 'Checked %1$d upcoming bookings against Google Calendar: %2$d cancelled there, %3$d moved. %4$d reminders sent.', 'anderson-appointment-booking' ),
+				$stats['synced'],
+				$stats['cancelled'],
+				$stats['moved'],
+				$stats['reminded']
+			)
+		);
+	}
+
+	/**
 	 * Bookings list columns.
 	 *
 	 * @param array $columns Columns.
@@ -392,6 +512,9 @@ final class AAB_Admin {
 					'cancelled' => __( 'Cancelled', 'anderson-appointment-booking' ),
 					'pending'   => __( 'Not confirmed', 'anderson-appointment-booking' ),
 				);
+				if ( 'cancelled' === $b['status'] && 'calendar' === get_post_meta( $post_id, '_aab_cancelled_by', true ) ) {
+					$labels['cancelled'] = __( 'Deleted in Google Calendar', 'anderson-appointment-booking' );
+				}
 				$status = isset( $labels[ $b['status'] ] ) ? $b['status'] : 'pending';
 				if ( 'confirmed' === $status && $b['end'] < time() ) {
 					echo esc_html__( 'Past', 'anderson-appointment-booking' );
@@ -463,6 +586,7 @@ final class AAB_Admin {
 					__( 'When', 'anderson-appointment-booking' )   => AAB_Bookings::format_time( $b['start'] ) . ' – ' . wp_date( get_option( 'time_format' ), $b['end'] ),
 					__( 'Name', 'anderson-appointment-booking' )   => $b['name'],
 					__( 'Email', 'anderson-appointment-booking' )  => $b['email'],
+					__( 'Phone', 'anderson-appointment-booking' )  => $b['phone'],
 					__( 'Status', 'anderson-appointment-booking' ) => $b['status'],
 					__( 'Notes', 'anderson-appointment-booking' )  => $b['notes'],
 				);

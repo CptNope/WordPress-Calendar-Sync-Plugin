@@ -4,7 +4,7 @@ Tags: appointment, booking, google calendar, scheduling, calendar
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -17,8 +17,11 @@ Anderson Appointment Booking puts a booking calendar on your site that knows whe
 * Live availability from one or more Google calendars
 * Weekly hours with breaks, appointment length, buffers, minimum notice, booking window and daily cap
 * Optional Google Meet link and calendar invite for the visitor
-* Slot locking and a live re-check at booking time to prevent double bookings
-* Confirmation email with a self-service cancel link; owner notifications
+* Atomic slot locking and a live re-check at booking time to prevent double bookings
+* Follows changes made in Google Calendar: deleted or moved appointments update on the site
+* Confirmation (with calendar file), reminder and change emails; self-service cancel link; owner notifications
+* Days off, per-person booking cap, optional or required phone number
+* Site Health checks, an email alert if Google access breaks, CSV export, automatic record clean-up
 * Times shown in the visitor's own timezone
 * Matches your theme automatically (block and classic themes): fonts, colors, buttons, fields, corners
 * Appearance settings with a live preview inside your theme, per-block overrides, shortcode attributes and CSS variables
@@ -62,11 +65,29 @@ Your Google OAuth app is in Testing mode. Publish it to In production in Google 
 
 By default it does: it uses your theme's fonts, button and field styles, colors and corner radius. Fine-tune it under Appointments → Settings → Appearance (with a live preview), per block in the editor, with shortcode attributes, or with CSS variables such as `--aab-accent` and `--aab-radius`.
 
+= My vacation is in Google Calendar but people can still book =
+
+All-day events are marked "Free" in Google Calendar by default, so they don't block times. Set the event to "Busy", or add the dates under Appointments → Settings → Days off.
+
+= My host disables WP-Cron. Does anything break? =
+
+Booking works, but reminders and syncing with changes made in Google Calendar need the hourly task. Add a server cron job that requests wp-cron.php every few minutes. Tools → Site Health tells you if the task isn't running.
+
 = Does it work with page caching? =
 
 Yes. Times are loaded through the REST API when the page opens, so cached pages still show current availability.
 
 == Changelog ==
+
+= 1.2.0 =
+* New: Appointments deleted or moved in Google Calendar are cancelled or updated on the site, and the visitor is emailed.
+* New: Reminder emails, a calendar file attached when no Google invite is sent, and the cancel link in every email.
+* New: Days off, a cap on upcoming bookings per person, and an optional or required phone number.
+* New: Site Health checks, an email to the owner if Google access breaks, a problem log, "Check Google Calendar now", CSV export, automatic record clean-up.
+* New: Classic themes' heading font is detected; arrow-key navigation in the calendar.
+* Fix: The slot lock is now atomic, so simultaneous requests can never double-book.
+* Fix: Rate limiting uses the real visitor IP behind proxies and caches such as Varnish or Cloudflare.
+* Improved: Google requests retry on timeouts and rate limits without creating duplicate events.
 
 = 1.1.0 =
 * New: "Match my theme" styling for block and classic themes (colors, buttons, fields, corners, heading font).

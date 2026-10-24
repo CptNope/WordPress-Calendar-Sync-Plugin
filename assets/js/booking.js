@@ -124,7 +124,8 @@
 		var root = this.root;
 		var wantAccent = root.classList.contains( 'aab--probe-accent' );
 		var wantRadius = root.classList.contains( 'aab--probe-radius' );
-		if ( ! ( wantAccent || wantRadius ) || ! window.getComputedStyle ) {
+		var wantFont = root.classList.contains( 'aab--probe-font' );
+		if ( ! ( wantAccent || wantRadius || wantFont ) || ! window.getComputedStyle ) {
 			return;
 		}
 		var host = root.parentNode || document.body;
@@ -141,6 +142,10 @@
 		b.type = 'submit';
 		b.textContent = 'b';
 		form.appendChild( b );
+		// A heading inside the content area picks up rules like `.entry-content h3`.
+		var heading = document.createElement( 'h3' );
+		heading.textContent = 'h';
+		box.appendChild( heading );
 		box.appendChild( p );
 		box.appendChild( form );
 		host.insertBefore( box, root );
@@ -151,7 +156,13 @@
 		var link = parseColor( window.getComputedStyle( a ).color );
 		var text = parseColor( window.getComputedStyle( root ).color );
 		var radius = bs.borderTopLeftRadius;
+		var headingFont = window.getComputedStyle( heading ).fontFamily;
+		var bodyFont = window.getComputedStyle( root ).fontFamily;
 		host.removeChild( box );
+
+		if ( wantFont && headingFont && headingFont !== bodyFont ) {
+			root.style.setProperty( '--aab-heading-font', headingFont );
+		}
 
 		// Browser-default grey buttons and see-through ones mean the theme doesn't style buttons.
 		var defaults = [ '#efefef', '#f0f0f0', '#e9e9ed', '#dddddd', '#e0e0e0', '#ededed' ];
@@ -210,7 +221,9 @@
 			self.shiftMonth( 1 );
 		} }, [ h( 'span', { 'aria-hidden': 'true', text: '›' } ) ] );
 
-		this.grid = h( 'div', { class: 'aab__grid', role: 'group', 'aria-label': this.t.pickDay } );
+		this.grid = h( 'div', { class: 'aab__grid', role: 'group', 'aria-label': this.t.pickDay, onkeydown: function ( ev ) {
+			self.onGridKey( ev );
+		} } );
 		this.panel = h( 'div', { class: 'aab__panel', 'aria-live': 'polite' } );
 		this.tzNote = h( 'p', { class: 'aab__tz' } );
 
@@ -346,6 +359,7 @@
 
 	Widget.prototype.render = function () {
 		this.renderGrid();
+		this.rovingTabindex();
 		this.renderPanel();
 	};
 
@@ -404,12 +418,82 @@
 		}
 	};
 
+	// One tab stop for the whole grid (the selected or first open day); arrow keys move between open days.
+	Widget.prototype.rovingTabindex = function () {
+		var open = this.grid.querySelectorAll( '.aab__day.is-open' );
+		var current = this.grid.querySelector( '.aab__day.is-selected' ) || open[ 0 ];
+		Array.prototype.forEach.call( open, function ( b ) {
+			b.tabIndex = b === current ? 0 : -1;
+		} );
+	};
+
+	Widget.prototype.onGridKey = function ( ev ) {
+		var btn = ev.target;
+		if ( ! btn || ! btn.classList || ! btn.classList.contains( 'aab__day' ) ) {
+			return;
+		}
+		var open = Array.prototype.slice.call( this.grid.querySelectorAll( '.aab__day.is-open' ) );
+		var i = open.indexOf( btn );
+		if ( i < 0 ) {
+			return;
+		}
+		var date = btn.getAttribute( 'data-date' );
+		var next = null;
+		var shift = function ( days ) {
+			var d = parseYmd( date );
+			d.setUTCDate( d.getUTCDate() + days );
+			return ymd( d );
+		};
+		switch ( ev.key ) {
+			case 'ArrowRight':
+				next = open[ i + 1 ];
+				break;
+			case 'ArrowLeft':
+				next = open[ i - 1 ];
+				break;
+			case 'ArrowDown':
+				var down = shift( 7 );
+				next = open.filter( function ( b ) {
+					return b.getAttribute( 'data-date' ) >= down;
+				} )[ 0 ];
+				break;
+			case 'ArrowUp':
+				var up = shift( -7 );
+				next = open.filter( function ( b ) {
+					return b.getAttribute( 'data-date' ) <= up;
+				} ).pop();
+				break;
+			case 'Home':
+				next = open[ 0 ];
+				break;
+			case 'End':
+				next = open[ open.length - 1 ];
+				break;
+			default:
+				return;
+		}
+		ev.preventDefault();
+		if ( next ) {
+			open.forEach( function ( b ) {
+				b.tabIndex = b === next ? 0 : -1;
+			} );
+			next.focus();
+		}
+	};
+
 	Widget.prototype.selectDay = function ( date ) {
+		var hadFocus = this.grid.contains( document.activeElement );
 		this.selected = date;
 		this.slot = null;
 		this.view = 'times';
 		this.notice = '';
 		this.render();
+		if ( hadFocus ) {
+			var again = this.grid.querySelector( '.aab__day.is-selected' );
+			if ( again ) {
+				again.focus( { preventScroll: true } );
+			}
+		}
 		var first = this.panel.querySelector( '.aab__time' );
 		if ( first && window.matchMedia( '(max-width: 640px)' ).matches ) {
 			this.panel.scrollIntoView( { behavior: 'smooth', block: 'start' } );
@@ -505,6 +589,9 @@
 		var form = h( 'form', { class: 'aab__form', novalidate: true } );
 		form.appendChild( this.field( 'name', t.name, 'text', { autocomplete: 'name', required: true, maxlength: '100' } ) );
 		form.appendChild( this.field( 'email', t.email, 'email', { autocomplete: 'email', required: true } ) );
+		if ( this.cfg.phone === 'optional' || this.cfg.phone === 'required' ) {
+			form.appendChild( this.field( 'phone', this.cfg.phone === 'required' ? t.phoneLabel : t.phoneOpt, 'tel', { autocomplete: 'tel', inputmode: 'tel', required: this.cfg.phone === 'required', maxlength: '40' } ) );
+		}
 		form.appendChild( this.field( 'notes', t.notes, 'textarea', { maxlength: '2000' } ) );
 
 		// Honeypot: hidden from people, tempting to bots.
@@ -586,6 +673,9 @@
 		if ( ! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test( get( 'email' ).trim() ) ) {
 			local.email = t.needEmail;
 		}
+		if ( this.cfg.phone === 'required' && ! get( 'phone' ).trim() ) {
+			local.phone = t.needPhone;
+		}
 		if ( this.cfg.consent && ! get( 'consent' ) ) {
 			local.consent = t.needConsent;
 		}
@@ -616,6 +706,7 @@
 			name: get( 'name' ).trim(),
 			email: get( 'email' ).trim(),
 			notes: get( 'notes' ).trim(),
+			phone: get( 'phone' ).trim(),
 			consent: !! get( 'consent' ),
 			website: get( 'website' ),
 			elapsed: Math.round( ( Date.now() - shownAt ) / 1000 ),

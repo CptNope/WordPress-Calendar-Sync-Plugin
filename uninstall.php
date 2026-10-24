@@ -27,6 +27,10 @@ if ( ! empty( $aab_google['refresh_token'] ) ) {
 delete_option( 'aab_google' );
 delete_option( 'aab_google_error' );
 delete_option( 'aab_busy_generation' );
+delete_option( 'aab_log' );
+delete_option( 'aab_last_run' );
+delete_option( 'aab_installed' );
+wp_clear_scheduled_hook( 'aab_hourly' );
 delete_transient( 'aab_access_token' );
 delete_transient( 'aab_calendars' );
 

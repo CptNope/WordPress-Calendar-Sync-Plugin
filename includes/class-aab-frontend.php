@@ -164,6 +164,7 @@ final class AAB_Frontend {
 			'locale'    => str_replace( '_', '-', determine_locale() ),
 			'weekStart' => (int) get_option( 'start_of_week', 1 ),
 			'consent'   => (string) AAB_Settings::get( 'consent_text' ),
+			'phone'     => (string) AAB_Settings::get( 'phone_field' ),
 			'heading'   => isset( $atts['heading'] ) ? (string) $atts['heading'] : '',
 			'duration'  => (int) AAB_Settings::get( 'duration' ),
 			'message'   => (string) AAB_Settings::get( 'confirmation_message' ),
@@ -315,6 +316,9 @@ window.addEventListener( 'message', function ( e ) {
 			'needName'     => __( 'Enter your name.', 'anderson-appointment-booking' ),
 			'needEmail'    => __( 'Enter a valid email address.', 'anderson-appointment-booking' ),
 			'needConsent'  => __( 'Check the box to continue.', 'anderson-appointment-booking' ),
+			'phoneLabel'   => __( 'Phone', 'anderson-appointment-booking' ),
+			'phoneOpt'     => __( 'Phone (optional)', 'anderson-appointment-booking' ),
+			'needPhone'    => __( 'Enter your phone number.', 'anderson-appointment-booking' ),
 			/* translators: %s: appointment start time */
 			'book'         => __( 'Book %s', 'anderson-appointment-booking' ),
 			'booking'      => __( 'Booking…', 'anderson-appointment-booking' ),

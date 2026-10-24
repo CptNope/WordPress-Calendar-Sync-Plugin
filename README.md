@@ -5,8 +5,10 @@ A WordPress plugin that lets visitors book appointments with you. Open times are
 - **Live availability** – reads free/busy from one or more Google calendars, so anything already on your calendar is never offered.
 - **Your hours, your rules** – weekly hours with breaks, appointment length, start-time spacing, buffers before/after, minimum notice, how far ahead, and a daily cap.
 - **Bookings go straight to Google** – event with the visitor's details, optional Meet link, optional guest invite.
-- **No double bookings** – the slot is locked and re-checked against Google at the moment of booking.
-- **Emails + self-service cancel** – confirmation to the visitor with a cancel link, notice to you; cancelling removes the Google event.
+- **No double bookings** – an atomic database lock plus a live re-check against Google at the moment of booking.
+- **Stays in step with Google Calendar** – delete or move an appointment in Google Calendar and the site follows within the hour (and emails the visitor).
+- **Emails** – confirmation with a cancel link (plus a calendar file when Google isn't sending an invite), reminder before the appointment, move/cancel notices, owner notifications.
+- **Booking rules** – weekly hours with breaks, days off, buffers, notice, booking window, daily cap, a cap on upcoming bookings per person, optional or required phone number.
 - **Shows times in the visitor's timezone** and adapts to its own width, so it fits pages, columns and sidebars.
 - **Matches any theme** – fonts, colors, buttons, form fields, corners and heading font come from the active theme (block or classic), or style it yourself. See [Styling](#styling).
 - **Block + shortcode** – "Appointment Booking" block with a live styled preview, or `[anderson_booking heading="Book a call"]`.
@@ -92,6 +94,17 @@ Filters for developers:
 - `aab_style_vars` – change the CSS variables applied to each widget.
 - `aab_theme_tokens` – adjust what was read from the theme (accent, radius, heading font, palette).
 
+## Running it in production
+
+- **Hosting behind a proxy or cache** (Cloudways/Varnish, nginx, Cloudflare): the visitor's real IP is read from `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For`, but only when the request reaches PHP from a private or loopback address, so it can't be spoofed from the internet. Override with the `aab_client_ip` filter if your setup differs. Page caches are fine: availability is loaded fresh through the REST API, which sends `Cache-Control: no-store`.
+- **Background tasks** run hourly through WP-Cron: Google sync, reminders, record clean-up. If your host disables WP-Cron (`DISABLE_WP_CRON`), add a server cron job that requests `wp-cron.php` every few minutes. **Tools → Site Health** warns if the task stops running, if Google access breaks, or if the site timezone is a fixed UTC offset (which breaks daylight saving time).
+- **When Google access breaks** (revoked, password change, or an OAuth app left in *Testing*), booking stops safely, the owner gets one email, and a notice appears in wp-admin until you reconnect.
+- **Google hiccups** (timeouts, 429, 5xx) are retried twice with backoff; event creation uses a client-generated ID, so a retry can never create a duplicate event. Recent errors are listed on the settings page.
+- **All-day events** in Google Calendar (vacations, holidays) are *Free* by default and don't block times. Mark them *Busy* or list the dates under **Days off**.
+- **Privacy**: booking records can be deleted automatically N days after the appointment; personal-data export/erase tools are supported; bookings can be exported as CSV (cells are protected against spreadsheet formula injection).
+- **Translations**: `languages/anderson-appointment-booking.pot`.
+- **CI**: GitHub Actions checks PHP syntax on 7.4–8.4 and JavaScript syntax on every push.
+
 ## How it works
 
 | Piece | Where |
@@ -102,6 +115,7 @@ Filters for developers:
 | Public REST API: `GET aab/v1/availability`, `POST aab/v1/bookings` | `includes/class-aab-rest.php` |
 | Theme detection and style resolution | `includes/class-aab-style.php` |
 | Shortcode, block, appearance preview, visitor cancel page | `includes/class-aab-frontend.php` |
+| Hourly sync, reminders, retention, Site Health checks | `includes/class-aab-maintenance.php` |
 | Settings screen and bookings list | `includes/class-aab-admin.php`, `includes/views/` |
 | Widget | `assets/js/booking.js`, `assets/css/booking.css` |
 

@@ -170,7 +170,7 @@ final class AAB_Availability {
 			$date         = $day->format( 'Y-m-d' );
 			$key          = $weekdays[ (int) $day->format( 'N' ) ];
 			$out[ $date ] = array();
-			$ranges       = AAB_Settings::parse_hours( isset( $hours[ $key ] ) ? $hours[ $key ] : '' );
+			$ranges       = AAB_Settings::is_day_off( $date ) ? array() : AAB_Settings::parse_hours( isset( $hours[ $key ] ) ? $hours[ $key ] : '' );
 
 			foreach ( $ranges as $range ) {
 				for ( $minute = $range[0]; $minute + $duration <= $range[1]; $minute += $interval ) {

@@ -1,0 +1,1348 @@
+# Copyright (C) 2026 Jeremy Anderson
+# This file is distributed under the MIT.
+msgid ""
+msgstr ""
+"Project-Id-Version: Anderson Appointment Booking 1.2.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/anderson-appointment-booking\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-10-24T19:17:59+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.11.0\n"
+"X-Domain: anderson-appointment-booking\n"
+
+#. Plugin Name of the plugin
+#: anderson-appointment-booking.php
+#: includes/class-aab-admin.php:152
+msgid "Anderson Appointment Booking"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: anderson-appointment-booking.php
+msgid "https://github.com/CptNope/WordPress-Calendar-Sync-Plugin"
+msgstr ""
+
+#. Description of the plugin
+#: anderson-appointment-booking.php
+msgid "Let visitors book appointments with you from your WordPress site. Availability is read live from your Google Calendar and every booking is added to it."
+msgstr ""
+
+#. Author of the plugin
+#: anderson-appointment-booking.php
+msgid "Jeremy Anderson"
+msgstr ""
+
+#. Author URI of the plugin
+#: anderson-appointment-booking.php
+msgid "https://jeremyanderson.tech"
+msgstr ""
+
+#: includes/class-aab-admin.php:46
+#: includes/class-aab-admin.php:47
+#: includes/class-aab-maintenance.php:279
+msgid "Appointments"
+msgstr ""
+
+#: includes/class-aab-admin.php:54
+msgid "Appointment settings"
+msgstr ""
+
+#: includes/class-aab-admin.php:54
+#: includes/class-aab-admin.php:64
+msgid "Settings"
+msgstr ""
+
+#: includes/class-aab-admin.php:111
+msgid "Copied"
+msgstr ""
+
+#: includes/class-aab-admin.php:126
+msgid "Appointment cancelled and removed from Google Calendar."
+msgstr ""
+
+#: includes/class-aab-admin.php:128
+msgid "The appointment could not be removed from Google Calendar, so it was not cancelled. Check the Google connection and try again."
+msgstr ""
+
+#: includes/class-aab-admin.php:137
+msgid "Appointment booking is offline."
+msgstr ""
+
+#: includes/class-aab-admin.php:138
+msgid "Google Calendar access was revoked or expired, so visitors cannot book."
+msgstr ""
+
+#: includes/class-aab-admin.php:140
+msgid "Reconnect Google Calendar"
+msgstr ""
+
+#: includes/class-aab-admin.php:153
+msgid "When you book an appointment, we store the name, email address and notes you enter, together with the time you chose. This information is added to our Google Calendar as an event (Google acts as our calendar provider) and is used to confirm, run and if needed cancel your appointment. You receive a confirmation email with a link to cancel."
+msgstr ""
+
+#: includes/class-aab-admin.php:183
+#: includes/class-aab-admin.php:326
+msgid "You do not have permission to do that."
+msgstr ""
+
+#: includes/class-aab-admin.php:295
+msgid "Settings saved. Your Google credentials changed, so connect Google Calendar again."
+msgstr ""
+
+#. translators: %s: lines that could not be read
+#: includes/class-aab-admin.php:299
+msgid "Settings saved, but these days-off lines could not be read and are ignored: %s. Use YYYY-MM-DD or YYYY-MM-DD to YYYY-MM-DD."
+msgstr ""
+
+#: includes/class-aab-admin.php:302
+msgid "Settings saved, but some hours could not be read and were cleared. Use 24-hour ranges like 09:00-12:00, 13:00-17:00."
+msgstr ""
+
+#: includes/class-aab-admin.php:304
+msgid "Settings saved."
+msgstr ""
+
+#: includes/class-aab-admin.php:313
+msgid "Add your Google client ID and secret first."
+msgstr ""
+
+#: includes/class-aab-admin.php:334
+msgid "The connection request expired or did not match. Click Connect Google Calendar again."
+msgstr ""
+
+#: includes/class-aab-admin.php:337
+msgid "Google Calendar was not connected because access was not granted."
+msgstr ""
+
+#: includes/class-aab-admin.php:342
+msgid "Google did not send an authorization code. Try connecting again."
+msgstr ""
+
+#. translators: %s: error from Google
+#: includes/class-aab-admin.php:347
+msgid "Google Calendar could not be connected: %s"
+msgstr ""
+
+#: includes/class-aab-admin.php:350
+msgid "Google Calendar connected. Choose your calendars below, then save."
+msgstr ""
+
+#: includes/class-aab-admin.php:359
+msgid "Google Calendar disconnected. Visitors can no longer book until you connect again."
+msgstr ""
+
+#: includes/class-aab-admin.php:386
+msgid "Export CSV"
+msgstr ""
+
+#: includes/class-aab-admin.php:452
+msgid "Problem log cleared."
+msgstr ""
+
+#. translators: 1: bookings checked, 2: cancelled, 3: moved, 4: reminders sent
+#: includes/class-aab-admin.php:465
+msgid "Checked %1$d upcoming bookings against Google Calendar: %2$d cancelled there, %3$d moved. %4$d reminders sent."
+msgstr ""
+
+#: includes/class-aab-admin.php:483
+#: includes/class-aab-bookings.php:36
+#: includes/class-aab-bookings.php:39
+#: blocks/booking/index.js:141
+msgid "Booking"
+msgstr ""
+
+#: includes/class-aab-admin.php:484
+#: includes/class-aab-admin.php:586
+#: includes/views/settings.php:358
+msgid "When"
+msgstr ""
+
+#: includes/class-aab-admin.php:485
+#: includes/class-aab-admin.php:588
+#: includes/class-aab-bookings.php:941
+#: includes/class-aab-frontend.php:314
+msgid "Email"
+msgstr ""
+
+#: includes/class-aab-admin.php:486
+#: includes/class-aab-admin.php:590
+#: includes/class-aab-bookings.php:953
+msgid "Status"
+msgstr ""
+
+#: includes/class-aab-admin.php:487
+msgid "Links"
+msgstr ""
+
+#: includes/class-aab-admin.php:511
+msgid "Confirmed"
+msgstr ""
+
+#: includes/class-aab-admin.php:512
+msgid "Cancelled"
+msgstr ""
+
+#: includes/class-aab-admin.php:513
+msgid "Not confirmed"
+msgstr ""
+
+#: includes/class-aab-admin.php:516
+msgid "Deleted in Google Calendar"
+msgstr ""
+
+#: includes/class-aab-admin.php:520
+msgid "Past"
+msgstr ""
+
+#: includes/class-aab-admin.php:528
+msgid "Calendar event"
+msgstr ""
+
+#: includes/class-aab-admin.php:531
+#: includes/views/settings.php:286
+msgid "Video call"
+msgstr ""
+
+#: includes/class-aab-admin.php:565
+msgid "Cancel this appointment? It will be removed from Google Calendar and the visitor will be emailed."
+msgstr ""
+
+#: includes/class-aab-admin.php:566
+#: includes/class-aab-frontend.php:354
+#: includes/class-aab-frontend.php:377
+msgid "Cancel appointment"
+msgstr ""
+
+#: includes/class-aab-admin.php:578
+msgid "Appointment details"
+msgstr ""
+
+#: includes/class-aab-admin.php:587
+#: includes/class-aab-bookings.php:937
+msgid "Name"
+msgstr ""
+
+#: includes/class-aab-admin.php:589
+#: includes/class-aab-bookings.php:945
+#: includes/class-aab-frontend.php:319
+#: includes/views/appearance.php:140
+msgid "Phone"
+msgstr ""
+
+#: includes/class-aab-admin.php:591
+#: includes/class-aab-bookings.php:949
+msgid "Notes"
+msgstr ""
+
+#: includes/class-aab-admin.php:618
+msgid "Monday"
+msgstr ""
+
+#: includes/class-aab-admin.php:619
+msgid "Tuesday"
+msgstr ""
+
+#: includes/class-aab-admin.php:620
+msgid "Wednesday"
+msgstr ""
+
+#: includes/class-aab-admin.php:621
+msgid "Thursday"
+msgstr ""
+
+#: includes/class-aab-admin.php:622
+msgid "Friday"
+msgstr ""
+
+#: includes/class-aab-admin.php:623
+msgid "Saturday"
+msgstr ""
+
+#: includes/class-aab-admin.php:624
+msgid "Sunday"
+msgstr ""
+
+#: includes/class-aab-availability.php:136
+msgid "That time was just taken. Pick another time."
+msgstr ""
+
+#: includes/class-aab-bookings.php:35
+#: includes/class-aab-bookings.php:37
+#: includes/class-aab-bookings.php:38
+msgid "Bookings"
+msgstr ""
+
+#: includes/class-aab-bookings.php:40
+msgid "Search bookings"
+msgstr ""
+
+#: includes/class-aab-bookings.php:41
+msgid "No bookings yet."
+msgstr ""
+
+#: includes/class-aab-bookings.php:116
+msgid "Someone else is booking that time right now. Pick another time."
+msgstr ""
+
+#. translators: 1: visitor name, 2: date and time
+#: includes/class-aab-bookings.php:229
+#: includes/class-aab-maintenance.php:166
+msgid "%1$s, %2$s"
+msgstr ""
+
+#: includes/class-aab-bookings.php:295
+msgid "The booking could not be added to the calendar. Try again in a minute."
+msgstr ""
+
+#: includes/class-aab-bookings.php:345
+msgid "Booking not found."
+msgstr ""
+
+#. translators: %s: visitor name
+#. translators: %s: name
+#: includes/class-aab-bookings.php:568
+#: includes/class-aab-bookings.php:802
+msgid "Name: %s"
+msgstr ""
+
+#. translators: %s: visitor email
+#. translators: %s: email
+#: includes/class-aab-bookings.php:570
+#: includes/class-aab-bookings.php:804
+msgid "Email: %s"
+msgstr ""
+
+#. translators: %s: visitor phone number
+#. translators: %s: phone number
+#: includes/class-aab-bookings.php:574
+#: includes/class-aab-bookings.php:808
+msgid "Phone: %s"
+msgstr ""
+
+#. translators: %s: site URL
+#: includes/class-aab-bookings.php:582
+msgid "Booked through %s"
+msgstr ""
+
+#. translators: 1: date and time, 2: timezone
+#: includes/class-aab-bookings.php:615
+msgid "When: %1$s (%2$s)"
+msgstr ""
+
+#. translators: %s: video call link
+#: includes/class-aab-bookings.php:619
+#: includes/class-aab-bookings.php:661
+msgid "Join the video call: %s"
+msgstr ""
+
+#. translators: %s: location
+#: includes/class-aab-bookings.php:624
+msgid "Location: %s"
+msgstr ""
+
+#. translators: %s: cancel link
+#: includes/class-aab-bookings.php:630
+#: includes/class-aab-bookings.php:666
+msgid "Need to cancel? %s"
+msgstr ""
+
+#. translators: %s: site name
+#: includes/class-aab-bookings.php:681
+msgid "Appointment with %s"
+msgstr ""
+
+#. translators: %s: visitor name
+#: includes/class-aab-bookings.php:729
+#: includes/class-aab-bookings.php:751
+#: includes/class-aab-bookings.php:774
+msgid "Hi %s,"
+msgstr ""
+
+#. translators: %s: site name
+#: includes/class-aab-bookings.php:732
+msgid "Your appointment with %s is booked."
+msgstr ""
+
+#. translators: 1: site name, 2: date and time
+#: includes/class-aab-bookings.php:738
+msgid "[%1$s] Appointment booked: %2$s"
+msgstr ""
+
+#. translators: %s: site name
+#: includes/class-aab-bookings.php:754
+msgid "A reminder of your upcoming appointment with %s."
+msgstr ""
+
+#. translators: 1: site name, 2: date and time
+#: includes/class-aab-bookings.php:760
+msgid "[%1$s] Reminder: appointment %2$s"
+msgstr ""
+
+#. translators: 1: site name, 2: old date and time
+#: includes/class-aab-bookings.php:777
+msgid "Your appointment with %1$s, previously %2$s, has moved."
+msgstr ""
+
+#. translators: 1: site name, 2: new date and time
+#: includes/class-aab-bookings.php:783
+msgid "[%1$s] Appointment moved to %2$s"
+msgstr ""
+
+#. translators: %s: date and time
+#: includes/class-aab-bookings.php:799
+msgid "New appointment: %s"
+msgstr ""
+
+#. translators: %s: Google Calendar event link
+#: includes/class-aab-bookings.php:817
+msgid "Open in Google Calendar: %s"
+msgstr ""
+
+#. translators: 1: site name, 2: visitor name
+#: includes/class-aab-bookings.php:820
+msgid "[%1$s] New booking from %2$s"
+msgstr ""
+
+#. translators: 1: site name, 2: date and time
+#: includes/class-aab-bookings.php:834
+msgid "[%1$s] Appointment cancelled: %2$s"
+msgstr ""
+
+#. translators: 1: visitor name, 2: date and time
+#: includes/class-aab-bookings.php:838
+msgid ""
+"Hi %1$s,\n"
+"\n"
+"Your appointment on %2$s has been cancelled."
+msgstr ""
+
+#. translators: 1: visitor name, 2: email, 3: date and time
+#: includes/class-aab-bookings.php:845
+msgid "%1$s (%2$s) cancelled their appointment on %3$s. It has been removed from Google Calendar."
+msgstr ""
+
+#: includes/class-aab-bookings.php:878
+#: includes/class-aab-bookings.php:892
+#: includes/class-aab-bookings.php:929
+msgid "Appointment bookings"
+msgstr ""
+
+#: includes/class-aab-bookings.php:933
+msgid "Time"
+msgstr ""
+
+#: includes/class-aab-bookings.php:981
+msgid "Booking records were deleted from this site. Events already on the owner’s Google Calendar are not changed."
+msgstr ""
+
+#: includes/class-aab-frontend.php:221
+msgid "Turn on JavaScript to book an appointment."
+msgstr ""
+
+#: includes/class-aab-frontend.php:235
+msgid "You do not have permission to view this preview."
+msgstr ""
+
+#: includes/class-aab-frontend.php:297
+msgid "Pick a day"
+msgstr ""
+
+#: includes/class-aab-frontend.php:298
+msgid "Pick a time"
+msgstr ""
+
+#: includes/class-aab-frontend.php:299
+msgid "Previous month"
+msgstr ""
+
+#: includes/class-aab-frontend.php:300
+msgid "Next month"
+msgstr ""
+
+#: includes/class-aab-frontend.php:301
+msgid "Loading open times…"
+msgstr ""
+
+#: includes/class-aab-frontend.php:302
+msgid "Choose a highlighted day to see open times."
+msgstr ""
+
+#: includes/class-aab-frontend.php:303
+msgid "No open times this month. Try the next month."
+msgstr ""
+
+#: includes/class-aab-frontend.php:304
+msgid "No open times left on this day."
+msgstr ""
+
+#. translators: %d: number of open times
+#: includes/class-aab-frontend.php:306
+msgid "%d open times"
+msgstr ""
+
+#: includes/class-aab-frontend.php:307
+msgid "1 open time"
+msgstr ""
+
+#. translators: %s: timezone name
+#: includes/class-aab-frontend.php:309
+msgid "Times are shown in your timezone, %s."
+msgstr ""
+
+#. translators: %d: appointment length in minutes
+#: includes/class-aab-frontend.php:311
+msgid "%d min"
+msgstr ""
+
+#: includes/class-aab-frontend.php:312
+msgid "Change time"
+msgstr ""
+
+#: includes/class-aab-frontend.php:313
+msgid "Your name"
+msgstr ""
+
+#: includes/class-aab-frontend.php:315
+msgid "Anything I should know? (optional)"
+msgstr ""
+
+#: includes/class-aab-frontend.php:316
+#: includes/class-aab-rest.php:171
+msgid "Enter your name."
+msgstr ""
+
+#: includes/class-aab-frontend.php:317
+#: includes/class-aab-rest.php:174
+msgid "Enter a valid email address."
+msgstr ""
+
+#: includes/class-aab-frontend.php:318
+#: includes/class-aab-rest.php:187
+msgid "Check the box to continue."
+msgstr ""
+
+#: includes/class-aab-frontend.php:320
+msgid "Phone (optional)"
+msgstr ""
+
+#: includes/class-aab-frontend.php:321
+#: includes/class-aab-rest.php:179
+msgid "Enter your phone number."
+msgstr ""
+
+#. translators: %s: appointment start time
+#: includes/class-aab-frontend.php:323
+msgid "Book %s"
+msgstr ""
+
+#: includes/class-aab-frontend.php:324
+msgid "Booking…"
+msgstr ""
+
+#: includes/class-aab-frontend.php:325
+msgid "Booked"
+msgstr ""
+
+#: includes/class-aab-frontend.php:326
+msgid "Video call link"
+msgstr ""
+
+#: includes/class-aab-frontend.php:327
+msgid "Book another time"
+msgstr ""
+
+#: includes/class-aab-frontend.php:328
+msgid "Something went wrong. Check your connection and try again."
+msgstr ""
+
+#: includes/class-aab-frontend.php:329
+msgid "Try again"
+msgstr ""
+
+#: includes/class-aab-frontend.php:330
+msgid "Leave this field empty"
+msgstr ""
+
+#: includes/class-aab-frontend.php:358
+msgid "This appointment is already cancelled."
+msgstr ""
+
+#: includes/class-aab-frontend.php:360
+msgid "This cancel link is not valid. Reply to your confirmation email and we’ll sort it out."
+msgstr ""
+
+#: includes/class-aab-frontend.php:362
+msgid "This appointment has already started, so it can’t be cancelled online."
+msgstr ""
+
+#: includes/class-aab-frontend.php:366
+msgid "The appointment could not be cancelled right now. Try again in a few minutes, or reply to your confirmation email."
+msgstr ""
+
+#: includes/class-aab-frontend.php:368
+msgid "Appointment cancelled"
+msgstr ""
+
+#. translators: %s: date and time
+#: includes/class-aab-frontend.php:370
+msgid "Your appointment on %s is cancelled. You’ll get an email confirming it."
+msgstr ""
+
+#: includes/class-aab-frontend.php:371
+msgid "Back to the site"
+msgstr ""
+
+#. translators: 1: name, 2: date and time
+#: includes/class-aab-frontend.php:375
+msgid "%1$s, your appointment is on %2$s."
+msgstr ""
+
+#: includes/class-aab-frontend.php:378
+msgid "Keep it and go back to the site"
+msgstr ""
+
+#: includes/class-aab-google.php:123
+msgid "Google did not return a refresh token. Remove this app from your Google account’s third-party access page, then connect again."
+msgstr ""
+
+#: includes/class-aab-google.php:129
+msgid "Some calendar permissions were not granted. Connect again and leave every permission checked."
+msgstr ""
+
+#: includes/class-aab-google.php:235
+msgid "Google Calendar is not connected."
+msgstr ""
+
+#. translators: %s: site name
+#: includes/class-aab-google.php:381
+msgid "[%s] Online booking is offline: reconnect Google Calendar"
+msgstr ""
+
+#. translators: %s: settings page URL
+#: includes/class-aab-google.php:384
+msgid ""
+"Google stopped accepting this site's access to your calendar (access was revoked, the password changed, or the Google app is still in Testing mode, which expires access after 7 days).\n"
+"\n"
+"Until you reconnect, visitors see \"Online booking is unavailable\".\n"
+"\n"
+"Reconnect here: %s"
+msgstr ""
+
+#. translators: %s: calendar ID
+#: includes/class-aab-google.php:489
+msgid "Could not read availability for calendar %s."
+msgstr ""
+
+#: includes/class-aab-maintenance.php:250
+msgid "Appointment booking: Google Calendar connection"
+msgstr ""
+
+#: includes/class-aab-maintenance.php:254
+msgid "Appointment booking: background tasks"
+msgstr ""
+
+#: includes/class-aab-maintenance.php:258
+msgid "Appointment booking: timezone"
+msgstr ""
+
+#: includes/class-aab-maintenance.php:294
+msgid "Open appointment settings"
+msgstr ""
+
+#: includes/class-aab-maintenance.php:304
+msgid "Online booking is offline: Google Calendar access expired or was revoked"
+msgstr ""
+
+#: includes/class-aab-maintenance.php:304
+msgid "Visitors can’t book until you reconnect Google Calendar. If this keeps happening every week, publish your Google OAuth app to In production."
+msgstr ""
+
+#: includes/class-aab-maintenance.php:307
+msgid "Google Calendar is not connected, so visitors can’t book"
+msgstr ""
+
+#: includes/class-aab-maintenance.php:307
+msgid "Connect Google Calendar to turn on online booking."
+msgstr ""
+
+#: includes/class-aab-maintenance.php:309
+msgid "Google Calendar is connected"
+msgstr ""
+
+#: includes/class-aab-maintenance.php:309
+msgid "Availability and new bookings are going through Google Calendar."
+msgstr ""
+
+#: includes/class-aab-maintenance.php:323
+msgid "Booking reminders and Google Calendar sync aren’t running"
+msgstr ""
+
+#: includes/class-aab-maintenance.php:323
+msgid "The hourly task that sends reminders and notices events you move or delete in Google Calendar hasn’t run in over three hours. If WP-Cron is disabled on this host, add a server cron job that calls wp-cron.php every few minutes."
+msgstr ""
+
+#: includes/class-aab-maintenance.php:325
+msgid "Booking background tasks are running"
+msgstr ""
+
+#: includes/class-aab-maintenance.php:325
+msgid "Reminders and Google Calendar sync run hourly."
+msgstr ""
+
+#: includes/class-aab-maintenance.php:338
+msgid "Set your site timezone to a city for correct appointment times"
+msgstr ""
+
+#: includes/class-aab-maintenance.php:339
+msgid "Your site uses a fixed UTC offset, which doesn’t change for daylight saving time, so your booking hours would shift by an hour twice a year. Choose a city (for example New York) under Settings → General → Timezone."
+msgstr ""
+
+#: includes/class-aab-maintenance.php:340
+msgid "Open general settings"
+msgstr ""
+
+#: includes/class-aab-maintenance.php:343
+msgid "Site timezone is set to a city"
+msgstr ""
+
+#: includes/class-aab-maintenance.php:343
+msgid "Booking hours follow daylight saving time correctly."
+msgstr ""
+
+#: includes/class-aab-rest.php:101
+msgid "Online booking is unavailable right now. Please get in touch another way."
+msgstr ""
+
+#: includes/class-aab-rest.php:114
+msgid "Invalid date range."
+msgstr ""
+
+#: includes/class-aab-rest.php:118
+msgid "Ask for at most six weeks at a time."
+msgstr ""
+
+#: includes/class-aab-rest.php:121
+msgid "Too many requests. Wait a few minutes and try again."
+msgstr ""
+
+#: includes/class-aab-rest.php:156
+msgid "The booking could not be submitted. Reload the page and try again."
+msgstr ""
+
+#: includes/class-aab-rest.php:159
+msgid "Too many bookings from your connection. Try again later or get in touch directly."
+msgstr ""
+
+#: includes/class-aab-rest.php:181
+msgid "Enter a valid phone number."
+msgstr ""
+
+#: includes/class-aab-rest.php:184
+msgid "Keep notes under 2,000 characters."
+msgstr ""
+
+#: includes/class-aab-rest.php:190
+msgid "Check the highlighted fields."
+msgstr ""
+
+#. translators: %d: number of upcoming appointments allowed
+#: includes/class-aab-rest.php:202
+msgid "You already have %d upcoming appointment. Cancel it from your confirmation email or reply to it to change it."
+msgid_plural "You already have %d upcoming appointments. Cancel one from its confirmation email or reply to it to make a change."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: CSS length such as 8px
+#: includes/views/appearance.php:20
+msgid "Match my theme (%s)"
+msgstr ""
+
+#: includes/views/appearance.php:21
+#: includes/views/appearance.php:53
+#: blocks/booking/index.js:165
+msgid "Match my theme"
+msgstr ""
+
+#: includes/views/appearance.php:22
+#: blocks/booking/index.js:166
+msgid "Square"
+msgstr ""
+
+#: includes/views/appearance.php:23
+#: blocks/booking/index.js:167
+msgid "Slightly rounded"
+msgstr ""
+
+#: includes/views/appearance.php:24
+#: blocks/booking/index.js:168
+msgid "Rounded"
+msgstr ""
+
+#: includes/views/appearance.php:25
+#: blocks/booking/index.js:169
+msgid "Very rounded"
+msgstr ""
+
+#: includes/views/appearance.php:31
+msgid "Appearance"
+msgstr ""
+
+#. translators: %s: theme name
+#: includes/views/appearance.php:36
+msgid "The calendar uses your page’s fonts and text color everywhere. “Match my theme” also pulls colors, buttons, corners and heading font from %s."
+msgstr ""
+
+#. translators: %s: theme name
+#: includes/views/appearance.php:39
+msgid "The calendar uses your page’s fonts and text color everywhere. %s is a classic theme, so “Match my theme” uses its color palette, or reads its button and link colors from the page, and leaves buttons and fields to its stylesheet."
+msgstr ""
+
+#. translators: %s: theme name
+#: includes/views/appearance.php:42
+msgid "The calendar uses your page’s fonts and text color everywhere. %s doesn’t publish a color palette, so “Match my theme” reads its button and link colors from the page and leaves buttons and fields to its stylesheet."
+msgstr ""
+
+#: includes/views/appearance.php:50
+msgid "Accent color"
+msgstr ""
+
+#: includes/views/appearance.php:57
+msgid "(read from your theme’s buttons and links on the page; the color below is the fallback)"
+msgstr ""
+
+#: includes/views/appearance.php:62
+#: includes/views/appearance.php:106
+msgid "Choose a color"
+msgstr ""
+
+#: includes/views/appearance.php:67
+msgid "Your theme’s colors"
+msgstr ""
+
+#: includes/views/appearance.php:77
+msgid "Booking button and form fields"
+msgstr ""
+
+#: includes/views/appearance.php:78
+msgid "Use my theme’s buttons and fields"
+msgstr ""
+
+#: includes/views/appearance.php:79
+msgid "Use the calendar’s own style (accent color)"
+msgstr ""
+
+#: includes/views/appearance.php:83
+#: blocks/booking/index.js:161
+msgid "Corners"
+msgstr ""
+
+#: includes/views/appearance.php:92
+#: blocks/booking/index.js:174
+msgid "Spacing"
+msgstr ""
+
+#: includes/views/appearance.php:94
+#: blocks/booking/index.js:176
+msgid "Compact"
+msgstr ""
+
+#: includes/views/appearance.php:95
+#: blocks/booking/index.js:176
+msgid "Comfortable"
+msgstr ""
+
+#: includes/views/appearance.php:96
+#: blocks/booking/index.js:176
+msgid "Roomy"
+msgstr ""
+
+#: includes/views/appearance.php:101
+msgid "Calendar background"
+msgstr ""
+
+#: includes/views/appearance.php:102
+msgid "None (shows the page behind it)"
+msgstr ""
+
+#: includes/views/appearance.php:104
+msgid "My theme’s page color"
+msgstr ""
+
+#: includes/views/appearance.php:113
+#: blocks/booking/index.js:180
+msgid "Headings"
+msgstr ""
+
+#: includes/views/appearance.php:115
+#: blocks/booking/index.js:182
+msgid "My theme’s heading font"
+msgstr ""
+
+#: includes/views/appearance.php:115
+msgid "(same as body text in this theme)"
+msgstr ""
+
+#: includes/views/appearance.php:116
+msgid "Same font as the text around it"
+msgstr ""
+
+#: includes/views/appearance.php:120
+msgid "Custom CSS"
+msgstr ""
+
+#: includes/views/appearance.php:124
+msgid "Loaded only on pages with the calendar. Useful variables:"
+msgstr ""
+
+#: includes/views/appearance.php:126
+msgid "Parts:"
+msgstr ""
+
+#: includes/views/appearance.php:130
+msgid "Only users allowed to post unfiltered HTML can edit custom CSS."
+msgstr ""
+
+#: includes/views/appearance.php:137
+msgid "Preview on your theme, with sample times"
+msgstr ""
+
+#: includes/views/appearance.php:138
+msgid "Preview width"
+msgstr ""
+
+#: includes/views/appearance.php:139
+msgid "Wide"
+msgstr ""
+
+#: includes/views/appearance.php:144
+msgid "Booking calendar preview"
+msgstr ""
+
+#: includes/views/settings.php:24
+msgid "Appointment booking"
+msgstr ""
+
+#: includes/views/settings.php:32
+msgid "Your site timezone is a fixed UTC offset, which ignores daylight saving time, so booking hours would shift by an hour twice a year."
+msgstr ""
+
+#: includes/views/settings.php:33
+msgid "Choose a city under Settings → General"
+msgstr ""
+
+#: includes/views/settings.php:38
+msgid "The OpenSSL PHP extension is missing, so your Google credentials are stored without encryption. Ask your host to enable OpenSSL."
+msgstr ""
+
+#: includes/views/settings.php:42
+msgid "Google Calendar"
+msgstr ""
+
+#. translators: %s: Google account email
+#: includes/views/settings.php:49
+msgid "Connected as %s."
+msgstr ""
+
+#: includes/views/settings.php:51
+msgid "Connected."
+msgstr ""
+
+#: includes/views/settings.php:54
+msgid "Visitors can book any open time in your hours below."
+msgstr ""
+
+#. translators: %s: human time difference, e.g. "20 mins"
+#: includes/views/settings.php:64
+msgid "Last checked Google Calendar for moved or deleted appointments %s ago."
+msgstr ""
+
+#: includes/views/settings.php:65
+msgid "The hourly check for moved or deleted appointments hasn’t run yet."
+msgstr ""
+
+#. translators: 1: Google Calendar timezone, 2: site timezone
+#: includes/views/settings.php:73
+msgid "Your Google Calendar uses %1$s but this site uses %2$s. Booking hours below follow the site timezone; appointments still land at the right moment in Google Calendar."
+msgstr ""
+
+#: includes/views/settings.php:84
+msgid "Check Google Calendar now"
+msgstr ""
+
+#: includes/views/settings.php:89
+msgid "Disconnect Google Calendar"
+msgstr ""
+
+#: includes/views/settings.php:93
+msgid "Not connected. Visitors see “Online booking is unavailable” until you connect."
+msgstr ""
+
+#: includes/views/settings.php:96
+msgid "How to get a Google client ID and secret (about 5 minutes)"
+msgstr ""
+
+#. translators: %s: link to Google Cloud Console
+#: includes/views/settings.php:102
+msgid "In %s, create a project (or pick one) and enable the Google Calendar API."
+msgstr ""
+
+#: includes/views/settings.php:107
+msgid "Open “Google Auth Platform” (OAuth consent screen), choose External, and fill in the app name and your email."
+msgstr ""
+
+#: includes/views/settings.php:108
+msgid "Under Audience, click “Publish app” so it is In production. Apps left in Testing lose access after 7 days and booking stops. You don’t need Google’s verification to use it with your own account; you will see an “unverified app” screen once while connecting."
+msgstr ""
+
+#: includes/views/settings.php:110
+msgid "Under Clients, create an OAuth client of type “Web application” and add this exact Authorized redirect URI:"
+msgstr ""
+
+#: includes/views/settings.php:113
+msgid "Copy"
+msgstr ""
+
+#: includes/views/settings.php:116
+msgid "Paste the client ID and client secret below, save, then click Connect Google Calendar."
+msgstr ""
+
+#: includes/views/settings.php:124
+msgid "Connect Google Calendar"
+msgstr ""
+
+#: includes/views/settings.php:135
+msgid "Google credentials"
+msgstr ""
+
+#: includes/views/settings.php:138
+msgid "Client ID"
+msgstr ""
+
+#: includes/views/settings.php:141
+#: includes/views/settings.php:151
+msgid "Set in wp-config.php"
+msgstr ""
+
+#: includes/views/settings.php:148
+msgid "Client secret"
+msgstr ""
+
+#: includes/views/settings.php:153
+msgid "Saved. Leave blank to keep it."
+msgstr ""
+
+#: includes/views/settings.php:154
+msgid "Stored encrypted. You can instead define AAB_GOOGLE_CLIENT_ID and AAB_GOOGLE_CLIENT_SECRET in wp-config.php."
+msgstr ""
+
+#: includes/views/settings.php:163
+msgid "Calendars"
+msgstr ""
+
+#. translators: %s: error message
+#: includes/views/settings.php:168
+msgid "Your calendars could not be loaded: %s"
+msgstr ""
+
+#: includes/views/settings.php:175
+msgid "Add bookings to"
+msgstr ""
+
+#: includes/views/settings.php:186
+msgid "(primary)"
+msgstr ""
+
+#: includes/views/settings.php:190
+msgid "New appointments are created here. Busy times on this calendar always block slots."
+msgstr ""
+
+#: includes/views/settings.php:194
+msgid "Also check for conflicts"
+msgstr ""
+
+#: includes/views/settings.php:206
+msgid "Busy events on checked calendars hide those times. Only free/busy is read; event details stay private."
+msgstr ""
+
+#: includes/views/settings.php:207
+msgid "Refresh list"
+msgstr ""
+
+#: includes/views/settings.php:217
+msgid "When people can book"
+msgstr ""
+
+#. translators: %s: timezone name
+#: includes/views/settings.php:222
+msgid "Hours use 24-hour time in your site timezone (%s). Separate breaks with commas, e.g. 09:00-12:00, 13:00-17:00. Leave a day empty to close it."
+msgstr ""
+
+#: includes/views/settings.php:231
+msgid "Closed"
+msgstr ""
+
+#: includes/views/settings.php:239
+msgid "Appointment length"
+msgstr ""
+
+#: includes/views/settings.php:239
+#: includes/views/settings.php:240
+#: includes/views/settings.php:241
+#: includes/views/settings.php:242
+msgid "minutes"
+msgstr ""
+
+#: includes/views/settings.php:240
+msgid "Start times every"
+msgstr ""
+
+#: includes/views/settings.php:240
+msgid "E.g. 30 offers 9:00, 9:30, 10:00…"
+msgstr ""
+
+#: includes/views/settings.php:241
+msgid "Free time before"
+msgstr ""
+
+#: includes/views/settings.php:241
+msgid "Keeps this much time clear before each appointment."
+msgstr ""
+
+#: includes/views/settings.php:242
+msgid "Free time after"
+msgstr ""
+
+#: includes/views/settings.php:243
+msgid "Minimum notice"
+msgstr ""
+
+#: includes/views/settings.php:243
+msgid "hours"
+msgstr ""
+
+#: includes/views/settings.php:243
+msgid "No bookings sooner than this from now."
+msgstr ""
+
+#: includes/views/settings.php:244
+msgid "Book up to"
+msgstr ""
+
+#: includes/views/settings.php:244
+msgid "days ahead"
+msgstr ""
+
+#: includes/views/settings.php:245
+msgid "Most bookings per day"
+msgstr ""
+
+#: includes/views/settings.php:245
+msgid "0 means no limit."
+msgstr ""
+
+#: includes/views/settings.php:246
+msgid "Upcoming bookings per person"
+msgstr ""
+
+#: includes/views/settings.php:246
+msgid "How many future appointments one email address can hold at once. 0 means no limit."
+msgstr ""
+
+#: includes/views/settings.php:261
+msgid "Days off"
+msgstr ""
+
+#: includes/views/settings.php:264
+msgid "One date or range per line (YYYY-MM-DD, or YYYY-MM-DD to YYYY-MM-DD). Nothing can be booked on these days."
+msgstr ""
+
+#: includes/views/settings.php:265
+msgid "Tip: all-day events in Google Calendar (vacations, holidays) are marked “Free” by default, so they don’t block bookings. Set them to “Busy” in Google Calendar, or list the dates here."
+msgstr ""
+
+#: includes/views/settings.php:272
+msgid "The appointment"
+msgstr ""
+
+#: includes/views/settings.php:275
+msgid "Calendar event title"
+msgstr ""
+
+#: includes/views/settings.php:278
+msgid "{name} is replaced with the visitor’s name, {site} with your site name."
+msgstr ""
+
+#: includes/views/settings.php:282
+msgid "Location"
+msgstr ""
+
+#: includes/views/settings.php:283
+msgid "Optional: an address or phone number"
+msgstr ""
+
+#: includes/views/settings.php:287
+msgid "Add a Google Meet link to each appointment"
+msgstr ""
+
+#: includes/views/settings.php:290
+msgid "Calendar invite"
+msgstr ""
+
+#: includes/views/settings.php:291
+msgid "Add the visitor as a guest so Google sends them an invite and updates"
+msgstr ""
+
+#: includes/views/settings.php:294
+msgid "Phone number"
+msgstr ""
+
+#: includes/views/settings.php:297
+msgid "Don’t ask"
+msgstr ""
+
+#: includes/views/settings.php:298
+msgid "Ask (optional)"
+msgstr ""
+
+#: includes/views/settings.php:299
+msgid "Ask (required)"
+msgstr ""
+
+#: includes/views/settings.php:304
+msgid "Notify me at"
+msgstr ""
+
+#: includes/views/settings.php:308
+msgid "Reminder email"
+msgstr ""
+
+#: includes/views/settings.php:310
+msgid "hours before"
+msgstr ""
+
+#: includes/views/settings.php:311
+msgid "0 turns reminders off. Google Calendar also reminds invited guests."
+msgstr ""
+
+#: includes/views/settings.php:315
+msgid "Message after booking"
+msgstr ""
+
+#: includes/views/settings.php:319
+msgid "Consent checkbox"
+msgstr ""
+
+#: includes/views/settings.php:321
+msgid "Optional, e.g. I agree to the privacy policy."
+msgstr ""
+
+#: includes/views/settings.php:322
+msgid "When filled in, visitors must tick a box with this text before booking."
+msgstr ""
+
+#: includes/views/settings.php:331
+msgid "Show the booking calendar"
+msgstr ""
+
+#: includes/views/settings.php:332
+msgid "Add the “Appointment Booking” block to any page, or paste this shortcode:"
+msgstr ""
+
+#: includes/views/settings.php:336
+msgid "When uninstalling"
+msgstr ""
+
+#: includes/views/settings.php:337
+msgid "Delete all settings and booking records (events stay in Google Calendar)"
+msgstr ""
+
+#: includes/views/settings.php:340
+msgid "Keep booking records"
+msgstr ""
+
+#: includes/views/settings.php:342
+msgid "days after the appointment"
+msgstr ""
+
+#: includes/views/settings.php:343
+msgid "Older records (names, emails, notes) are deleted from this site automatically. 0 keeps them. Google Calendar events are not touched."
+msgstr ""
+
+#: includes/views/settings.php:349
+msgid "Save settings"
+msgstr ""
+
+#: includes/views/settings.php:355
+msgid "Recent problems talking to Google"
+msgstr ""
+
+#: includes/views/settings.php:356
+msgid "Occasional timeouts are normal and are retried automatically. Repeated errors usually mean the connection needs attention."
+msgstr ""
+
+#: includes/views/settings.php:358
+msgid "Doing"
+msgstr ""
+
+#: includes/views/settings.php:358
+msgid "Error"
+msgstr ""
+
+#: includes/views/settings.php:372
+msgid "Clear"
+msgstr ""
+
+#: blocks/booking/index.js:119
+msgid "Default (site setting)"
+msgstr ""
+
+#: blocks/booking/index.js:143
+msgid "Heading above the calendar"
+msgstr ""
+
+#: blocks/booking/index.js:144
+msgid "Optional, e.g. Book a 30-minute call."
+msgstr ""
+
+#: blocks/booking/index.js:148
+msgid "Hours and calendars are set under Appointments → Settings. The preview uses sample times."
+msgstr ""
+
+#: blocks/booking/index.js:152
+msgid "Calendar style"
+msgstr ""
+
+#: blocks/booking/index.js:153
+msgid "Overrides for this block only. Text color, background, font and spacing are under the Styles tab."
+msgstr ""
+
+#: blocks/booking/index.js:155
+msgid "Booking button and fields"
+msgstr ""
+
+#: blocks/booking/index.js:157
+msgid "Use my theme’s style"
+msgstr ""
+
+#: blocks/booking/index.js:157
+msgid "Use the calendar’s style"
+msgstr ""
+
+#: blocks/booking/index.js:182
+msgid "Same as the text around it"
+msgstr ""
+
+#: blocks/booking/index.js:191
+msgid "Calendar colors"
+msgstr ""
+
+#: blocks/booking/index.js:194
+msgid "Accent"
+msgstr ""
+
+#: blocks/booking/index.js:199
+msgid "Calendar box"
+msgstr ""

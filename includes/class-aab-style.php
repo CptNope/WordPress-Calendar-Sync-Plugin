@@ -263,6 +263,9 @@ final class AAB_Style {
 		// Headings.
 		if ( 'theme' === $s['style_headings'] && null !== $t['heading_font'] ) {
 			$vars['--aab-heading-font'] = $t['heading_font'];
+		} elseif ( 'theme' === $s['style_headings'] && 'theme.json' !== $t['source'] ) {
+			// Classic theme: the script reads the font the theme gives its headings.
+			$classes[] = 'aab--probe-font';
 		}
 
 		$classes[] = 'aab--buttons-' . $s['style_buttons'];

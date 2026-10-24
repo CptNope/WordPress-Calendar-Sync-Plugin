@@ -69,6 +69,9 @@
 		if ( accentMode === 'theme' && ( ! tokens.accent || ! tokens.json ) ) {
 			classes.push( 'aab--probe-accent' );
 		}
+		if ( val( 'style_headings' ) === 'theme' && ! tokens.headingFont && ! tokens.json ) {
+			classes.push( 'aab--probe-font' );
+		}
 		if ( radius === 'auto' && ! tokens.radius && ! tokens.json ) {
 			classes.push( 'aab--probe-radius' );
 		}

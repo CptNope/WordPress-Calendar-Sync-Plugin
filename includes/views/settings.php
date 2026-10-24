@@ -27,6 +27,13 @@ $aab_has_secret = $secret_locked || '' !== AAB_Settings::client_secret();
 		<div class="notice notice-<?php echo 'error' === $notice['type'] ? 'error' : 'success'; ?> is-dismissible"><p><?php echo esc_html( $notice['message'] ); ?></p></div>
 	<?php endif; ?>
 
+	<?php if ( '' === (string) get_option( 'timezone_string' ) ) : ?>
+		<div class="notice notice-warning"><p>
+			<?php esc_html_e( 'Your site timezone is a fixed UTC offset, which ignores daylight saving time, so booking hours would shift by an hour twice a year.', 'anderson-appointment-booking' ); ?>
+			<a href="<?php echo esc_url( admin_url( 'options-general.php' ) ); ?>"><?php esc_html_e( 'Choose a city under Settings → General', 'anderson-appointment-booking' ); ?></a>
+		</p></div>
+	<?php endif; ?>
+
 	<?php if ( ! AAB_Crypto::available() ) : ?>
 		<div class="notice notice-warning"><p><?php esc_html_e( 'The OpenSSL PHP extension is missing, so your Google credentials are stored without encryption. Ask your host to enable OpenSSL.', 'anderson-appointment-booking' ); ?></p></div>
 	<?php endif; ?>
@@ -46,11 +53,42 @@ $aab_has_secret = $secret_locked || '' !== AAB_Settings::client_secret();
 				?>
 				<?php esc_html_e( 'Visitors can book any open time in your hours below.', 'anderson-appointment-booking' ); ?>
 			</p>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-				<input type="hidden" name="action" value="aab_disconnect">
-				<?php wp_nonce_field( 'aab_disconnect' ); ?>
-				<button type="submit" class="button"><?php esc_html_e( 'Disconnect Google Calendar', 'anderson-appointment-booking' ); ?></button>
-			</form>
+			<?php
+			$aab_last   = (int) get_option( AAB_Maintenance::LAST_RUN );
+			$aab_cal_tz = AAB_Google::calendar_timezone( (string) $s['booking_calendar'] );
+			?>
+			<p class="description">
+				<?php
+				echo $aab_last
+					/* translators: %s: human time difference, e.g. "20 mins" */
+					? esc_html( sprintf( __( 'Last checked Google Calendar for moved or deleted appointments %s ago.', 'anderson-appointment-booking' ), human_time_diff( $aab_last ) ) )
+					: esc_html__( 'The hourly check for moved or deleted appointments hasn’t run yet.', 'anderson-appointment-booking' );
+				?>
+			</p>
+			<?php if ( '' !== $aab_cal_tz && '' !== (string) get_option( 'timezone_string' ) && $aab_cal_tz !== wp_timezone_string() ) : ?>
+				<div class="notice notice-info inline"><p>
+					<?php
+					printf(
+						/* translators: 1: Google Calendar timezone, 2: site timezone */
+						esc_html__( 'Your Google Calendar uses %1$s but this site uses %2$s. Booking hours below follow the site timezone; appointments still land at the right moment in Google Calendar.', 'anderson-appointment-booking' ),
+						'<strong>' . esc_html( $aab_cal_tz ) . '</strong>',
+						'<strong>' . esc_html( wp_timezone_string() ) . '</strong>'
+					);
+					?>
+				</p></div>
+			<?php endif; ?>
+			<div class="aab-inline-forms">
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="aab_run_now">
+					<?php wp_nonce_field( 'aab_run_now' ); ?>
+					<button type="submit" class="button"><?php esc_html_e( 'Check Google Calendar now', 'anderson-appointment-booking' ); ?></button>
+				</form>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="aab_disconnect">
+					<?php wp_nonce_field( 'aab_disconnect' ); ?>
+					<button type="submit" class="button"><?php esc_html_e( 'Disconnect Google Calendar', 'anderson-appointment-booking' ); ?></button>
+				</form>
+			</div>
 		<?php else : ?>
 			<p class="aab-connection"><?php esc_html_e( 'Not connected. Visitors see “Online booking is unavailable” until you connect.', 'anderson-appointment-booking' ); ?></p>
 
@@ -205,6 +243,7 @@ $aab_has_secret = $secret_locked || '' !== AAB_Settings::client_secret();
 					'min_notice'    => array( __( 'Minimum notice', 'anderson-appointment-booking' ), __( 'hours', 'anderson-appointment-booking' ), __( 'No bookings sooner than this from now.', 'anderson-appointment-booking' ) ),
 					'max_days'      => array( __( 'Book up to', 'anderson-appointment-booking' ), __( 'days ahead', 'anderson-appointment-booking' ), '' ),
 					'daily_limit'   => array( __( 'Most bookings per day', 'anderson-appointment-booking' ), '', __( '0 means no limit.', 'anderson-appointment-booking' ) ),
+					'max_per_email' => array( __( 'Upcoming bookings per person', 'anderson-appointment-booking' ), '', __( 'How many future appointments one email address can hold at once. 0 means no limit.', 'anderson-appointment-booking' ) ),
 				);
 				foreach ( $aab_numbers as $aab_key => $aab_meta ) :
 					?>
@@ -218,6 +257,14 @@ $aab_has_secret = $secret_locked || '' !== AAB_Settings::client_secret();
 						</td>
 					</tr>
 				<?php endforeach; ?>
+				<tr>
+					<th scope="row"><label for="aab-days-off"><?php esc_html_e( 'Days off', 'anderson-appointment-booking' ); ?></label></th>
+					<td>
+						<textarea id="aab-days-off" name="aab[days_off]" rows="4" class="regular-text code" placeholder="2026-11-26  # Thanksgiving&#10;2026-12-24 to 2027-01-02"><?php echo esc_textarea( $s['days_off'] ); ?></textarea>
+						<p class="description"><?php esc_html_e( 'One date or range per line (YYYY-MM-DD, or YYYY-MM-DD to YYYY-MM-DD). Nothing can be booked on these days.', 'anderson-appointment-booking' ); ?></p>
+						<p class="description"><?php esc_html_e( 'Tip: all-day events in Google Calendar (vacations, holidays) are marked “Free” by default, so they don’t block bookings. Set them to “Busy” in Google Calendar, or list the dates here.', 'anderson-appointment-booking' ); ?></p>
+					</td>
+				</tr>
 			</table>
 		</div>
 
@@ -244,8 +291,25 @@ $aab_has_secret = $secret_locked || '' !== AAB_Settings::client_secret();
 					<td><label><input type="checkbox" name="aab[invite_guest]" value="1" <?php checked( $s['invite_guest'] ); ?>> <?php esc_html_e( 'Add the visitor as a guest so Google sends them an invite and updates', 'anderson-appointment-booking' ); ?></label></td>
 				</tr>
 				<tr>
+					<th scope="row"><label for="aab-phone-field"><?php esc_html_e( 'Phone number', 'anderson-appointment-booking' ); ?></label></th>
+					<td>
+						<select id="aab-phone-field" name="aab[phone_field]">
+							<option value="off" <?php selected( $s['phone_field'], 'off' ); ?>><?php esc_html_e( 'Don’t ask', 'anderson-appointment-booking' ); ?></option>
+							<option value="optional" <?php selected( $s['phone_field'], 'optional' ); ?>><?php esc_html_e( 'Ask (optional)', 'anderson-appointment-booking' ); ?></option>
+							<option value="required" <?php selected( $s['phone_field'], 'required' ); ?>><?php esc_html_e( 'Ask (required)', 'anderson-appointment-booking' ); ?></option>
+						</select>
+					</td>
+				</tr>
+				<tr>
 					<th scope="row"><label for="aab-notify-email"><?php esc_html_e( 'Notify me at', 'anderson-appointment-booking' ); ?></label></th>
 					<td><input type="email" id="aab-notify-email" name="aab[notify_email]" value="<?php echo esc_attr( $s['notify_email'] ); ?>" class="regular-text"></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="aab-reminder"><?php esc_html_e( 'Reminder email', 'anderson-appointment-booking' ); ?></label></th>
+					<td>
+						<input type="number" min="0" max="168" id="aab-reminder" name="aab[reminder_hours]" value="<?php echo esc_attr( $s['reminder_hours'] ); ?>" class="small-text"> <?php esc_html_e( 'hours before', 'anderson-appointment-booking' ); ?>
+						<p class="description"><?php esc_html_e( '0 turns reminders off. Google Calendar also reminds invited guests.', 'anderson-appointment-booking' ); ?></p>
+					</td>
 				</tr>
 				<tr>
 					<th scope="row"><label for="aab-confirmation"><?php esc_html_e( 'Message after booking', 'anderson-appointment-booking' ); ?></label></th>
@@ -272,9 +336,41 @@ $aab_has_secret = $secret_locked || '' !== AAB_Settings::client_secret();
 					<th scope="row"><?php esc_html_e( 'When uninstalling', 'anderson-appointment-booking' ); ?></th>
 					<td><label><input type="checkbox" name="aab[delete_data]" value="1" <?php checked( $s['delete_data'] ); ?>> <?php esc_html_e( 'Delete all settings and booking records (events stay in Google Calendar)', 'anderson-appointment-booking' ); ?></label></td>
 				</tr>
+				<tr>
+					<th scope="row"><label for="aab-retention"><?php esc_html_e( 'Keep booking records', 'anderson-appointment-booking' ); ?></label></th>
+					<td>
+						<input type="number" min="0" id="aab-retention" name="aab[retention_days]" value="<?php echo esc_attr( $s['retention_days'] ); ?>" class="small-text"> <?php esc_html_e( 'days after the appointment', 'anderson-appointment-booking' ); ?>
+						<p class="description"><?php esc_html_e( 'Older records (names, emails, notes) are deleted from this site automatically. 0 keeps them. Google Calendar events are not touched.', 'anderson-appointment-booking' ); ?></p>
+					</td>
+				</tr>
 			</table>
 		</div>
 
 		<?php submit_button( __( 'Save settings', 'anderson-appointment-booking' ) ); ?>
 	</form>
+
+	<?php $aab_log = get_option( AAB_Google::LOG_OPTION, array() ); ?>
+	<?php if ( is_array( $aab_log ) && $aab_log ) : ?>
+		<div class="aab-card">
+			<h2><?php esc_html_e( 'Recent problems talking to Google', 'anderson-appointment-booking' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'Occasional timeouts are normal and are retried automatically. Repeated errors usually mean the connection needs attention.', 'anderson-appointment-booking' ); ?></p>
+			<table class="widefat striped aab-log">
+				<thead><tr><th><?php esc_html_e( 'When', 'anderson-appointment-booking' ); ?></th><th><?php esc_html_e( 'Doing', 'anderson-appointment-booking' ); ?></th><th><?php esc_html_e( 'Error', 'anderson-appointment-booking' ); ?></th></tr></thead>
+				<tbody>
+					<?php foreach ( array_slice( $aab_log, 0, 10 ) as $aab_entry ) : ?>
+						<tr>
+							<td><?php echo esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) $aab_entry['time'] ) ); ?></td>
+							<td><code><?php echo esc_html( $aab_entry['context'] ); ?></code></td>
+							<td><?php echo esc_html( $aab_entry['message'] ); ?></td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="aab-log-clear">
+				<input type="hidden" name="action" value="aab_clear_log">
+				<?php wp_nonce_field( 'aab_clear_log' ); ?>
+				<button type="submit" class="button"><?php esc_html_e( 'Clear', 'anderson-appointment-booking' ); ?></button>
+			</form>
+		</div>
+	<?php endif; ?>
 </div>

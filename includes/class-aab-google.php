@@ -16,6 +16,7 @@ final class AAB_Google {
 
 	const TOKEN_OPTION   = 'aab_google';
 	const ERROR_OPTION   = 'aab_google_error';
+	const LOG_OPTION     = 'aab_log';
 	const ACCESS_KEY     = 'aab_access_token';
 	const CALENDARS_KEY  = 'aab_calendars';
 	const AUTH_ENDPOINT  = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -243,9 +244,14 @@ final class AAB_Google {
 		if ( is_wp_error( $response ) ) {
 			$data = $response->get_error_data();
 			if ( is_array( $data ) && isset( $data['oauth_error'] ) && 'invalid_grant' === $data['oauth_error'] ) {
-				// The grant was revoked or expired: record it so the admin sees a reconnect notice.
+				// The grant was revoked or expired: booking is offline until the owner reconnects.
+				$first = ! get_option( self::ERROR_OPTION );
 				update_option( self::ERROR_OPTION, array( 'message' => $response->get_error_message(), 'time' => time() ), false );
+				if ( $first ) {
+					self::alert_owner();
+				}
 			}
+			self::log( 'token', $response->get_error_message() );
 			return $response;
 		}
 		self::cache_access_token( $response );
@@ -256,47 +262,158 @@ final class AAB_Google {
 	/**
 	 * Call the Calendar API.
 	 *
+	 * Transient failures (timeouts, 429 rate limits, 5xx) are retried twice with backoff.
+	 * Every write this plugin makes is safe to repeat: events are created with a client-chosen
+	 * ID and deleting an event that is already gone counts as success.
+	 *
 	 * @param string     $method HTTP method.
 	 * @param string     $path   Path under /calendar/v3.
 	 * @param array|null $body   JSON body.
 	 * @param array      $query  Query arguments.
-	 * @param bool       $retry  Internal: retry once on 401.
 	 * @return array|WP_Error Decoded JSON (empty array for 204).
 	 */
-	public static function request( $method, $path, $body = null, array $query = array(), $retry = true ) {
-		$token = self::access_token();
-		if ( is_wp_error( $token ) ) {
-			return $token;
-		}
-		$url  = add_query_arg( rawurlencode_deep( $query ), self::API . $path );
-		$args = array(
-			'method'  => $method,
-			'timeout' => 15,
-			'headers' => array(
-				'Authorization' => 'Bearer ' . $token,
-				'Accept'        => 'application/json',
-			),
-		);
-		if ( null !== $body ) {
-			$args['headers']['Content-Type'] = 'application/json';
-			$args['body']                    = wp_json_encode( $body );
-		}
+	public static function request( $method, $path, $body = null, array $query = array() ) {
+		$url      = add_query_arg( rawurlencode_deep( $query ), self::API . $path );
+		$attempts = 3;
+		$refreshed = false;
 
-		$response = wp_remote_request( $url, $args );
-		if ( is_wp_error( $response ) ) {
-			return $response;
+		for ( $attempt = 1; $attempt <= $attempts; $attempt++ ) {
+			$token = self::access_token( $refreshed );
+			if ( is_wp_error( $token ) ) {
+				return $token;
+			}
+			$args = array(
+				'method'  => $method,
+				// Short first try, a little longer on retries; keeps the worst case inside PHP's usual 30s limit.
+				'timeout' => 1 === $attempt ? 8 : 6,
+				'headers' => array(
+					'Authorization' => 'Bearer ' . $token,
+					'Accept'        => 'application/json',
+				),
+			);
+			if ( null !== $body ) {
+				$args['headers']['Content-Type'] = 'application/json';
+				$args['body']                    = wp_json_encode( $body );
+			}
+
+			$response = wp_remote_request( $url, $args );
+			$code     = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+
+			if ( 401 === $code && ! $refreshed ) {
+				// Access token expired early or was revoked: refresh once and retry.
+				delete_transient( self::ACCESS_KEY );
+				$refreshed = true;
+				--$attempt;
+				continue;
+			}
+
+			$transient = is_wp_error( $response ) || 429 === $code || $code >= 500 || self::is_rate_limit( $response, $code );
+			if ( $transient && $attempt < $attempts ) {
+				usleep( (int) ( ( 2 ** ( $attempt - 1 ) ) * 400000 + wp_rand( 0, 200000 ) ) );
+				continue;
+			}
+
+			if ( is_wp_error( $response ) ) {
+				self::log( $method . ' ' . strtok( $path, '?' ), $response->get_error_message() );
+				return $response;
+			}
+
+			$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
+			if ( $code >= 400 ) {
+				$message = is_array( $decoded ) && isset( $decoded['error']['message'] ) ? (string) $decoded['error']['message'] : 'HTTP ' . $code;
+				if ( ! in_array( $code, array( 404, 409, 410 ), true ) ) {
+					self::log( $method . ' ' . strtok( $path, '?' ), $code . ' ' . $message );
+				}
+				return new WP_Error( 'aab_google_http', $message, array( 'status' => $code ) );
+			}
+			return is_array( $decoded ) ? $decoded : array();
 		}
-		$code = (int) wp_remote_retrieve_response_code( $response );
-		if ( 401 === $code && $retry ) {
-			delete_transient( self::ACCESS_KEY );
-			return self::request( $method, $path, $body, $query, false );
+		return new WP_Error( 'aab_google_http', 'Retries exhausted' );
+	}
+
+	/**
+	 * Google reports some rate limits as 403 with a rateLimitExceeded reason.
+	 *
+	 * @param array|WP_Error $response Response.
+	 * @param int            $code     Status.
+	 * @return bool
+	 */
+	private static function is_rate_limit( $response, $code ) {
+		if ( 403 !== $code || is_wp_error( $response ) ) {
+			return false;
 		}
-		$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
-		if ( $code >= 400 ) {
-			$message = is_array( $decoded ) && isset( $decoded['error']['message'] ) ? (string) $decoded['error']['message'] : 'HTTP ' . $code;
-			return new WP_Error( 'aab_google_http', $message, array( 'status' => $code ) );
+		$body = wp_remote_retrieve_body( $response );
+		return false !== strpos( $body, 'rateLimitExceeded' ) || false !== strpos( $body, 'userRateLimitExceeded' );
+	}
+
+	/**
+	 * Remember recent problems for the settings screen (newest first, last 20).
+	 *
+	 * @param string $context What was being done.
+	 * @param string $message Error.
+	 */
+	public static function log( $context, $message ) {
+		$log = get_option( self::LOG_OPTION, array() );
+		$log = is_array( $log ) ? $log : array();
+		array_unshift(
+			$log,
+			array(
+				'time'    => time(),
+				'context' => substr( sanitize_text_field( $context ), 0, 80 ),
+				'message' => substr( sanitize_text_field( $message ), 0, 300 ),
+			)
+		);
+		update_option( self::LOG_OPTION, array_slice( $log, 0, 20 ), false );
+	}
+
+	/**
+	 * Tell the owner by email that booking went offline (once per outage).
+	 */
+	private static function alert_owner() {
+		$to = AAB_Bookings::notify_email();
+		if ( '' === $to ) {
+			return;
 		}
-		return is_array( $decoded ) ? $decoded : array();
+		$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		wp_mail(
+			$to,
+			/* translators: %s: site name */
+			sprintf( __( '[%s] Online booking is offline: reconnect Google Calendar', 'anderson-appointment-booking' ), $site ),
+			sprintf(
+				/* translators: %s: settings page URL */
+				__( "Google stopped accepting this site's access to your calendar (access was revoked, the password changed, or the Google app is still in Testing mode, which expires access after 7 days).\n\nUntil you reconnect, visitors see \"Online booking is unavailable\".\n\nReconnect here: %s", 'anderson-appointment-booking' ),
+				admin_url( 'admin.php?page=aab-settings' )
+			)
+		);
+	}
+
+	/**
+	 * Fetch one event.
+	 *
+	 * @param string $calendar_id Calendar ID.
+	 * @param string $event_id    Event ID.
+	 * @return array|WP_Error
+	 */
+	public static function get_event( $calendar_id, $event_id ) {
+		return self::request( 'GET', '/calendars/' . rawurlencode( $calendar_id ) . '/events/' . rawurlencode( $event_id ) );
+	}
+
+	/**
+	 * A calendar's timezone ('' if unknown). Cached for a day.
+	 *
+	 * @param string $calendar_id Calendar ID.
+	 * @return string
+	 */
+	public static function calendar_timezone( $calendar_id ) {
+		$key    = 'aab_caltz_' . md5( $calendar_id );
+		$cached = get_transient( $key );
+		if ( is_string( $cached ) ) {
+			return $cached;
+		}
+		$cal = self::request( 'GET', '/calendars/' . rawurlencode( $calendar_id ) );
+		$tz  = ! is_wp_error( $cal ) && ! empty( $cal['timeZone'] ) ? (string) $cal['timeZone'] : '';
+		set_transient( $key, $tz, $tz ? DAY_IN_SECONDS : HOUR_IN_SECONDS );
+		return $tz;
 	}
 
 	/**
@@ -395,7 +512,15 @@ final class AAB_Google {
 		if ( isset( $event['conferenceData'] ) ) {
 			$query['conferenceDataVersion'] = 1;
 		}
-		return self::request( 'POST', '/calendars/' . rawurlencode( $calendar_id ) . '/events', $event, $query );
+		$result = self::request( 'POST', '/calendars/' . rawurlencode( $calendar_id ) . '/events', $event, $query );
+		if ( is_wp_error( $result ) && ! empty( $event['id'] ) ) {
+			$data = $result->get_error_data();
+			// 409 = an earlier attempt already created it (e.g. the response was lost): use that event.
+			if ( is_array( $data ) && isset( $data['status'] ) && 409 === (int) $data['status'] ) {
+				return self::get_event( $calendar_id, $event['id'] );
+			}
+		}
+		return $result;
 	}
 
 	/**

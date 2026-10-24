@@ -71,6 +71,10 @@ final class AAB_Rest {
 						'type'    => 'string',
 						'default' => '',
 					),
+					'phone'   => array(
+						'type'    => 'string',
+						'default' => '',
+					),
 					'consent' => array(
 						'type'    => 'boolean',
 						'default' => false,
@@ -158,7 +162,9 @@ final class AAB_Rest {
 		$name  = sanitize_text_field( (string) $request['name'] );
 		$email = sanitize_email( (string) $request['email'] );
 		$notes = sanitize_textarea_field( (string) $request['notes'] );
+		$phone = sanitize_text_field( (string) $request['phone'] );
 		$start = (int) $request['start'];
+		$ask   = (string) AAB_Settings::get( 'phone_field' );
 
 		$errors = array();
 		if ( '' === $name || mb_strlen( $name ) > 100 ) {
@@ -166,6 +172,13 @@ final class AAB_Rest {
 		}
 		if ( ! is_email( $email ) ) {
 			$errors['email'] = __( 'Enter a valid email address.', 'anderson-appointment-booking' );
+		}
+		if ( 'off' === $ask ) {
+			$phone = '';
+		} elseif ( '' === $phone && 'required' === $ask ) {
+			$errors['phone'] = __( 'Enter your phone number.', 'anderson-appointment-booking' );
+		} elseif ( '' !== $phone && ! preg_match( '/^\+?[0-9\s().\-\/]{6,25}(\s*(x|ext\.?)\s*[0-9]{1,6})?$/i', $phone ) ) {
+			$errors['phone'] = __( 'Enter a valid phone number.', 'anderson-appointment-booking' );
 		}
 		if ( mb_strlen( $notes ) > 2000 ) {
 			$errors['notes'] = __( 'Keep notes under 2,000 characters.', 'anderson-appointment-booking' );
@@ -180,7 +193,28 @@ final class AAB_Rest {
 			return self::unavailable();
 		}
 
-		$booking = AAB_Bookings::create( $start, $name, $email, $notes );
+		$max = (int) AAB_Settings::get( 'max_per_email' );
+		if ( $max > 0 && AAB_Bookings::upcoming_count_for_email( $email ) >= $max ) {
+			return new WP_Error(
+				'aab_too_many',
+				sprintf(
+					/* translators: %d: number of upcoming appointments allowed */
+					_n( 'You already have %d upcoming appointment. Cancel it from your confirmation email or reply to it to change it.', 'You already have %d upcoming appointments. Cancel one from its confirmation email or reply to it to make a change.', $max, 'anderson-appointment-booking' ),
+					$max
+				),
+				array( 'status' => 403 )
+			);
+		}
+
+		$booking = AAB_Bookings::create(
+			$start,
+			array(
+				'name'  => $name,
+				'email' => $email,
+				'notes' => $notes,
+				'phone' => $phone,
+			)
+		);
 		if ( is_wp_error( $booking ) ) {
 			$data   = $booking->get_error_data();
 			$status = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 500;
@@ -206,6 +240,53 @@ final class AAB_Rest {
 	}
 
 	/**
+	 * The visitor's IP address.
+	 *
+	 * Many hosts put a cache or proxy in front of PHP (Cloudways' Varnish, nginx, Cloudflare),
+	 * so REMOTE_ADDR is the proxy's own private address and every visitor would share one
+	 * rate-limit bucket. Forwarding headers are only trusted when the connection itself
+	 * comes from a private or loopback address, i.e. from such a proxy, never from the internet.
+	 *
+	 * @return string
+	 */
+	public static function client_ip() {
+		$remote = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$ip     = $remote;
+		$public = static function ( $candidate ) {
+			return (bool) filter_var( $candidate, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE );
+		};
+
+		if ( '' !== $remote && filter_var( $remote, FILTER_VALIDATE_IP ) && ! $public( $remote ) ) {
+			foreach ( array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR' ) as $header ) {
+				if ( empty( $_SERVER[ $header ] ) ) {
+					continue;
+				}
+				$found = '';
+				// X-Forwarded-For is "client, proxy1, proxy2": take the first public address.
+				foreach ( explode( ',', sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) ) ) as $candidate ) {
+					$candidate = trim( $candidate );
+					if ( $public( $candidate ) ) {
+						$found = $candidate;
+						break;
+					}
+				}
+				if ( '' !== $found ) {
+					$ip = $found;
+					break;
+				}
+			}
+		}
+
+		/**
+		 * Filter the client IP used for rate limiting.
+		 *
+		 * @param string $ip     Detected client IP.
+		 * @param string $remote The raw REMOTE_ADDR.
+		 */
+		return (string) apply_filters( 'aab_client_ip', $ip, $remote );
+	}
+
+	/**
 	 * Simple per-IP rate limiter.
 	 *
 	 * @param string $bucket Bucket name.
@@ -215,13 +296,7 @@ final class AAB_Rest {
 	 * @return bool True when over the limit.
 	 */
 	private static function rate_limited( $bucket, $limit, $window, $hit = false ) {
-		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
-		/**
-		 * Filter the client IP used for rate limiting (for sites behind a trusted proxy).
-		 *
-		 * @param string $ip Client IP.
-		 */
-		$ip    = (string) apply_filters( 'aab_client_ip', $ip );
+		$ip    = self::client_ip();
 		$key   = 'aab_rl_' . $bucket . '_' . substr( hash_hmac( 'sha256', $ip, wp_salt( 'nonce' ) ), 0, 20 );
 		$count = (int) get_transient( $key );
 		if ( $count >= $limit ) {

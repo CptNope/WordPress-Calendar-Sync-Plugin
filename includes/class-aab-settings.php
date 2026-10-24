@@ -65,6 +65,11 @@ final class AAB_Settings {
 			'min_notice'           => 12,
 			'max_days'             => 30,
 			'daily_limit'          => 0,
+			'days_off'             => '',
+			'max_per_email'        => 2,
+			'phone_field'          => 'off',
+			'reminder_hours'       => 24,
+			'retention_days'       => 0,
 			'event_title'          => 'Appointment with {name}',
 			'location'             => '',
 			'add_meet'             => 1,
@@ -151,6 +156,57 @@ final class AAB_Settings {
 	 */
 	public static function flush() {
 		self::$cache = null;
+	}
+
+	/**
+	 * Parse the days-off list: one date or range per line, e.g. "2026-12-24" or
+	 * "2026-12-24 to 2027-01-02", optionally followed by "# note".
+	 *
+	 * @param string $value Raw text.
+	 * @return array{ranges:array<int,array{0:string,1:string}>,invalid:string[]}
+	 */
+	public static function parse_days_off( $value ) {
+		$ranges  = array();
+		$invalid = array();
+		foreach ( preg_split( '/\r\n|\r|\n/', (string) $value ) as $line ) {
+			$line = trim( preg_replace( '/#.*$/', '', $line ) );
+			if ( '' === $line ) {
+				continue;
+			}
+			if ( preg_match( '/^(\d{4}-\d{2}-\d{2})(?:\s*(?:to|-|–|—|\.\.)\s*(\d{4}-\d{2}-\d{2}))?$/u', $line, $m ) ) {
+				$from = $m[1];
+				$to   = isset( $m[2] ) && '' !== $m[2] ? $m[2] : $m[1];
+				if ( AAB_Availability::is_valid_date( $from ) && AAB_Availability::is_valid_date( $to ) ) {
+					$ranges[] = $from <= $to ? array( $from, $to ) : array( $to, $from );
+					continue;
+				}
+			}
+			$invalid[] = $line;
+		}
+		return array(
+			'ranges'  => $ranges,
+			'invalid' => $invalid,
+		);
+	}
+
+	/**
+	 * Is a date (Y-m-d) inside the days-off list?
+	 *
+	 * @param string $date Date.
+	 * @return bool
+	 */
+	public static function is_day_off( $date ) {
+		static $ranges = null;
+		if ( null === $ranges ) {
+			$parsed = self::parse_days_off( self::get( 'days_off' ) );
+			$ranges = $parsed['ranges'];
+		}
+		foreach ( $ranges as $range ) {
+			if ( $date >= $range[0] && $date <= $range[1] ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

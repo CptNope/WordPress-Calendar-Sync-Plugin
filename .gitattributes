@@ -1,0 +1,5 @@
+# Keep development files out of `git archive` (release zips).
+/.github export-ignore
+/.gitattributes export-ignore
+/.distignore export-ignore
+/README.md export-ignore

@@ -86,6 +86,7 @@ final class AAB_Bookings {
 			'name'        => (string) $m( 'name' ),
 			'email'       => (string) $m( 'email' ),
 			'notes'       => (string) $m( 'notes' ),
+			'phone'       => (string) $m( 'phone' ),
 			'status'      => (string) $m( 'status' ),
 			'event_id'    => (string) $m( 'event_id' ),
 			'calendar_id' => (string) $m( 'calendar_id' ),
@@ -97,21 +98,22 @@ final class AAB_Bookings {
 	/**
 	 * Create a booking: lock the slot, re-check Google live, add the event, store and email.
 	 *
-	 * @param int    $start Unix start time.
-	 * @param string $name  Visitor name.
-	 * @param string $email Visitor email.
-	 * @param string $notes Visitor notes.
+	 * @param int   $start   Unix start time.
+	 * @param array $visitor name, email, notes, phone.
 	 * @return array|WP_Error Booking.
 	 */
-	public static function create( $start, $name, $email, $notes ) {
-		$lock = 'aab_lock_' . (int) $start;
-		if ( ! add_option( $lock, time(), '', false ) ) {
-			$held = (int) get_option( $lock );
-			if ( $held && time() - $held < 60 ) {
-				return new WP_Error( 'aab_slot_taken', __( 'Someone else is booking that time right now. Pick another time.', 'anderson-appointment-booking' ), array( 'status' => 409 ) );
-			}
-			// Stale lock from a request that died; take it over.
-			update_option( $lock, time(), false );
+	public static function create( $start, array $visitor ) {
+		$visitor = wp_parse_args(
+			$visitor,
+			array(
+				'name'  => '',
+				'email' => '',
+				'notes' => '',
+				'phone' => '',
+			)
+		);
+		if ( ! self::acquire_lock( $start ) ) {
+			return new WP_Error( 'aab_slot_taken', __( 'Someone else is booking that time right now. Pick another time.', 'anderson-appointment-booking' ), array( 'status' => 409 ) );
 		}
 
 		try {
@@ -119,22 +121,102 @@ final class AAB_Bookings {
 			if ( is_wp_error( $check ) ) {
 				return $check;
 			}
-			return self::insert( $start, $name, $email, $notes );
+			return self::insert( $start, $visitor );
 		} finally {
-			delete_option( $lock );
+			self::release_lock( $start );
 		}
+	}
+
+	/**
+	 * Take the lock for one start time.
+	 *
+	 * add_option() is not atomic (it checks, then inserts with ON DUPLICATE KEY UPDATE),
+	 * so two simultaneous requests could both "win" it. INSERT IGNORE on the options
+	 * table's unique key is atomic: exactly one request inserts the row.
+	 *
+	 * @param int $start Unix start time.
+	 * @return bool
+	 */
+	private static function acquire_lock( $start ) {
+		global $wpdb;
+		$name = '_aab_lock_' . (int) $start;
+		$now  = time();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- atomic lock; must bypass the options cache.
+		$inserted = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", $name, (string) $now ) );
+		if ( $inserted ) {
+			return true;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+		if ( $held && $now - $held < 60 ) {
+			return false;
+		}
+		// A request that died left the lock behind: take it over, but only if nobody else just did.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return (bool) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", (string) $now, $name, (string) $held ) );
+	}
+
+	/**
+	 * Release the lock for one start time.
+	 *
+	 * @param int $start Unix start time.
+	 */
+	private static function release_lock( $start ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->delete( $wpdb->options, array( 'option_name' => '_aab_lock_' . (int) $start ) );
+	}
+
+	/**
+	 * Number of upcoming confirmed bookings for an email address.
+	 *
+	 * @param string $email Email.
+	 * @return int
+	 */
+	public static function upcoming_count_for_email( $email ) {
+		$ids = get_posts(
+			array(
+				'post_type'      => self::POST_TYPE,
+				'post_status'    => 'publish',
+				'posts_per_page' => 50,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+				'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					'relation' => 'AND',
+					array(
+						'key'   => '_aab_email',
+						'value' => $email,
+					),
+					array(
+						'key'   => '_aab_status',
+						'value' => 'confirmed',
+					),
+					array(
+						'key'     => '_aab_end',
+						'value'   => time(),
+						'compare' => '>',
+						'type'    => 'NUMERIC',
+					),
+				),
+			)
+		);
+		return count( $ids );
 	}
 
 	/**
 	 * Store the booking and create the Google event.
 	 *
-	 * @param int    $start Start.
-	 * @param string $name  Name.
-	 * @param string $email Email.
-	 * @param string $notes Notes.
+	 * @param int   $start   Start.
+	 * @param array $visitor Visitor details.
 	 * @return array|WP_Error
 	 */
-	private static function insert( $start, $name, $email, $notes ) {
+	private static function insert( $start, array $visitor ) {
+		$name     = $visitor['name'];
+		$email    = $visitor['email'];
+		$notes    = $visitor['notes'];
+		$phone    = $visitor['phone'];
 		$end      = $start + AAB_Availability::duration_seconds();
 		$calendar = (string) AAB_Settings::get( 'booking_calendar' );
 		$token    = wp_generate_password( 32, false );
@@ -152,9 +234,12 @@ final class AAB_Bookings {
 					'_aab_name'        => $name,
 					'_aab_email'       => $email,
 					'_aab_notes'       => $notes,
+					'_aab_phone'       => $phone,
 					'_aab_status'      => 'pending',
 					'_aab_calendar_id' => $calendar,
 					'_aab_cancel_hash' => self::hash_token( $token ),
+					// Kept (encrypted) so reminder and change emails can include the cancel link too.
+					'_aab_cancel_enc'  => AAB_Crypto::encrypt( $token ),
 				),
 			),
 			true
@@ -165,8 +250,10 @@ final class AAB_Bookings {
 
 		$tz    = wp_timezone_string();
 		$event = array(
+			// A client-chosen ID makes the insert safe to retry: a repeat gets "already exists" instead of a duplicate.
+			'id'                 => self::event_id( $post_id ),
 			'summary'            => self::render_title( $name ),
-			'description'        => self::event_description( $name, $email, $notes ),
+			'description'        => self::event_description( $name, $email, $notes, $phone ),
 			'start'              => array(
 				'dateTime' => wp_date( 'c', $start ),
 				'timeZone' => self::google_timezone( $tz ),
@@ -232,7 +319,7 @@ final class AAB_Bookings {
 		AAB_Availability::bust_cache();
 
 		$booking = self::get( $post_id );
-		self::email_confirmation( $booking, $token );
+		self::email_confirmation( $booking );
 		self::email_admin_new( $booking );
 
 		/**
@@ -249,7 +336,7 @@ final class AAB_Bookings {
 	 * Cancel a booking.
 	 *
 	 * @param int    $id Booking ID.
-	 * @param string $by 'visitor' or 'admin'.
+	 * @param string $by 'visitor', 'admin' or 'calendar' (the event was deleted in Google Calendar).
 	 * @return true|WP_Error
 	 */
 	public static function cancel( $id, $by ) {
@@ -260,15 +347,16 @@ final class AAB_Bookings {
 		if ( 'cancelled' === $booking['status'] ) {
 			return true;
 		}
-		if ( '' !== $booking['event_id'] ) {
+		if ( '' !== $booking['event_id'] && 'calendar' !== $by ) {
 			$result = AAB_Google::delete_event( $booking['calendar_id'], $booking['event_id'], (bool) AAB_Settings::get( 'invite_guest' ) );
 			if ( is_wp_error( $result ) ) {
 				return $result;
 			}
 		}
 		update_post_meta( $id, '_aab_status', 'cancelled' );
-		update_post_meta( $id, '_aab_cancelled_by', 'admin' === $by ? 'admin' : 'visitor' );
+		update_post_meta( $id, '_aab_cancelled_by', in_array( $by, array( 'admin', 'calendar' ), true ) ? $by : 'visitor' );
 		delete_post_meta( $id, '_aab_cancel_hash' );
+		delete_post_meta( $id, '_aab_cancel_enc' );
 		AAB_Availability::bust_cache();
 
 		$booking['status'] = 'cancelled';
@@ -451,20 +539,40 @@ final class AAB_Bookings {
 	}
 
 	/**
+	 * Google event ID for a booking. Google allows 5–1024 characters from a–v and 0–9.
+	 *
+	 * @param int $post_id Booking ID.
+	 * @return string
+	 */
+	private static function event_id( $post_id ) {
+		$alphabet = '0123456789abcdefghijklmnopqrstuv';
+		$random   = '';
+		foreach ( str_split( random_bytes( 10 ) ) as $byte ) {
+			$random .= $alphabet[ ord( $byte ) % 32 ];
+		}
+		return 'aab' . (int) $post_id . 'v' . $random;
+	}
+
+	/**
 	 * Event description.
 	 *
 	 * @param string $name  Name.
 	 * @param string $email Email.
 	 * @param string $notes Notes.
+	 * @param string $phone Phone.
 	 * @return string
 	 */
-	private static function event_description( $name, $email, $notes ) {
+	private static function event_description( $name, $email, $notes, $phone = '' ) {
 		$lines = array(
 			/* translators: %s: visitor name */
 			sprintf( __( 'Name: %s', 'anderson-appointment-booking' ), $name ),
 			/* translators: %s: visitor email */
 			sprintf( __( 'Email: %s', 'anderson-appointment-booking' ), $email ),
 		);
+		if ( '' !== $phone ) {
+			/* translators: %s: visitor phone number */
+			$lines[] = sprintf( __( 'Phone: %s', 'anderson-appointment-booking' ), $phone );
+		}
 		if ( '' !== $notes ) {
 			$lines[] = '';
 			$lines[] = $notes;
@@ -476,22 +584,37 @@ final class AAB_Bookings {
 	}
 
 	/**
-	 * Email the visitor.
+	 * The visitor's cancel link for a stored booking ('' if it can't be rebuilt).
 	 *
-	 * @param array  $booking Booking.
-	 * @param string $token   Cancel token.
+	 * @param array $booking Booking.
+	 * @return string
 	 */
-	private static function email_confirmation( array $booking, $token ) {
-		$site  = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+	public static function cancel_url_for( array $booking ) {
+		$token = AAB_Crypto::decrypt( (string) get_post_meta( $booking['id'], '_aab_cancel_enc', true ) );
+		return '' !== $token && self::verify_token( $booking['id'], $token ) ? self::cancel_url( $booking['id'], $token ) : '';
+	}
+
+	/**
+	 * Site name for emails.
+	 *
+	 * @return string
+	 */
+	private static function site_name() {
+		return wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+	}
+
+	/**
+	 * The "when / where / how to join / how to cancel" block shared by visitor emails.
+	 *
+	 * @param array $booking Booking.
+	 * @return string[]
+	 */
+	private static function details_lines( array $booking ) {
 		$lines = array(
-			/* translators: %s: visitor name */
-			sprintf( __( 'Hi %s,', 'anderson-appointment-booking' ), $booking['name'] ),
-			'',
-			/* translators: 1: site name, 2: date and time, 3: timezone */
-			sprintf( __( 'Your appointment with %1$s is booked for %2$s (%3$s).', 'anderson-appointment-booking' ), $site, self::format_time( $booking['start'] ), wp_timezone_string() ),
+			/* translators: 1: date and time, 2: timezone */
+			sprintf( __( 'When: %1$s (%2$s)', 'anderson-appointment-booking' ), self::format_time( $booking['start'] ), wp_timezone_string() ),
 		);
 		if ( '' !== $booking['meet_link'] ) {
-			$lines[] = '';
 			/* translators: %s: video call link */
 			$lines[] = sprintf( __( 'Join the video call: %s', 'anderson-appointment-booking' ), $booking['meet_link'] );
 		}
@@ -500,13 +623,165 @@ final class AAB_Bookings {
 			/* translators: %s: location */
 			$lines[] = sprintf( __( 'Location: %s', 'anderson-appointment-booking' ), $location );
 		}
-		$lines[] = '';
-		/* translators: %s: cancel link */
-		$lines[] = sprintf( __( 'Need to cancel? %s', 'anderson-appointment-booking' ), self::cancel_url( $booking['id'], $token ) );
+		$cancel = self::cancel_url_for( $booking );
+		if ( '' !== $cancel ) {
+			$lines[] = '';
+			/* translators: %s: cancel link */
+			$lines[] = sprintf( __( 'Need to cancel? %s', 'anderson-appointment-booking' ), $cancel );
+		}
+		return $lines;
+	}
 
+	/**
+	 * Calendar file (iCalendar) for a booking.
+	 *
+	 * @param array $booking Booking.
+	 * @return string
+	 */
+	public static function ics( array $booking ) {
+		$esc  = static function ( $text ) {
+			return str_replace( array( '\\', ';', ',', "\r\n", "\n" ), array( '\\\\', '\;', '\\,', '\\n', '\\n' ), (string) $text );
+		};
+		$fold = static function ( $line ) {
+			$out = '';
+			while ( strlen( $line ) > 74 ) {
+				$cut  = 74;
+				// Don't split a multibyte character.
+				while ( $cut > 0 && ( ord( $line[ $cut ] ) & 0xC0 ) === 0x80 ) {
+					--$cut;
+				}
+				$out .= substr( $line, 0, $cut ) . "\r\n ";
+				$line = substr( $line, $cut );
+			}
+			return $out . $line;
+		};
+		$desc = array();
+		if ( '' !== $booking['meet_link'] ) {
+			/* translators: %s: video call link */
+			$desc[] = sprintf( __( 'Join the video call: %s', 'anderson-appointment-booking' ), $booking['meet_link'] );
+		}
+		$cancel = self::cancel_url_for( $booking );
+		if ( '' !== $cancel ) {
+			/* translators: %s: cancel link */
+			$desc[] = sprintf( __( 'Need to cancel? %s', 'anderson-appointment-booking' ), $cancel );
+		}
+		$host  = wp_parse_url( home_url(), PHP_URL_HOST );
+		$lines = array(
+			'BEGIN:VCALENDAR',
+			'VERSION:2.0',
+			'PRODID:-//Anderson Appointment Booking//EN',
+			'CALSCALE:GREGORIAN',
+			'METHOD:PUBLISH',
+			'BEGIN:VEVENT',
+			'UID:aab-' . $booking['id'] . '@' . $host,
+			'DTSTAMP:' . gmdate( 'Ymd\THis\Z' ),
+			'DTSTART:' . gmdate( 'Ymd\THis\Z', $booking['start'] ),
+			'DTEND:' . gmdate( 'Ymd\THis\Z', $booking['end'] ),
+			/* translators: %s: site name */
+			'SUMMARY:' . $esc( sprintf( __( 'Appointment with %s', 'anderson-appointment-booking' ), self::site_name() ) ),
+			'DESCRIPTION:' . $esc( implode( "\n", $desc ) ),
+		);
+		$location = trim( (string) AAB_Settings::get( 'location' ) );
+		if ( '' !== $location || '' !== $booking['meet_link'] ) {
+			$lines[] = 'LOCATION:' . $esc( '' !== $location ? $location : $booking['meet_link'] );
+		}
+		if ( '' !== $booking['meet_link'] ) {
+			$lines[] = 'URL:' . $booking['meet_link'];
+		}
+		$lines[] = 'STATUS:CONFIRMED';
+		$lines[] = 'END:VEVENT';
+		$lines[] = 'END:VCALENDAR';
+		return implode( "\r\n", array_map( $fold, $lines ) ) . "\r\n";
+	}
+
+	/**
+	 * Send an email to the visitor, attaching a calendar file when Google isn't sending them an invite.
+	 *
+	 * @param array    $booking Booking.
+	 * @param string   $subject Subject.
+	 * @param string[] $lines   Body lines.
+	 * @param bool     $attach  Attach the .ics file.
+	 */
+	private static function mail_visitor( array $booking, $subject, array $lines, $attach ) {
+		$file = '';
+		if ( $attach && ! AAB_Settings::get( 'invite_guest' ) ) {
+			$file = trailingslashit( get_temp_dir() ) . 'appointment-' . (int) $booking['id'] . '-' . wp_generate_password( 6, false ) . '.ics';
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- short-lived temp attachment.
+			if ( false === file_put_contents( $file, self::ics( $booking ) ) ) {
+				$file = '';
+			}
+		}
+		wp_mail( $booking['email'], $subject, implode( "\n", $lines ), self::reply_to_header( self::notify_email() ), $file ? array( $file ) : array() );
+		if ( $file ) {
+			wp_delete_file( $file );
+		}
+	}
+
+	/**
+	 * Email the visitor.
+	 *
+	 * @param array $booking Booking.
+	 */
+	private static function email_confirmation( array $booking ) {
+		$lines = array_merge(
+			array(
+				/* translators: %s: visitor name */
+				sprintf( __( 'Hi %s,', 'anderson-appointment-booking' ), $booking['name'] ),
+				'',
+				/* translators: %s: site name */
+				sprintf( __( 'Your appointment with %s is booked.', 'anderson-appointment-booking' ), self::site_name() ),
+				'',
+			),
+			self::details_lines( $booking )
+		);
 		/* translators: 1: site name, 2: date and time */
-		$subject = sprintf( __( '[%1$s] Appointment booked: %2$s', 'anderson-appointment-booking' ), $site, self::format_time( $booking['start'] ) );
-		wp_mail( $booking['email'], $subject, implode( "\n", $lines ), self::reply_to_header( self::notify_email() ) );
+		$subject = sprintf( __( '[%1$s] Appointment booked: %2$s', 'anderson-appointment-booking' ), self::site_name(), self::format_time( $booking['start'] ) );
+		self::mail_visitor( $booking, $subject, $lines, true );
+	}
+
+	/**
+	 * Reminder before the appointment.
+	 *
+	 * @param array $booking Booking.
+	 */
+	public static function email_reminder( array $booking ) {
+		$lines = array_merge(
+			array(
+				/* translators: %s: visitor name */
+				sprintf( __( 'Hi %s,', 'anderson-appointment-booking' ), $booking['name'] ),
+				'',
+				/* translators: %s: site name */
+				sprintf( __( 'A reminder of your upcoming appointment with %s.', 'anderson-appointment-booking' ), self::site_name() ),
+				'',
+			),
+			self::details_lines( $booking )
+		);
+		/* translators: 1: site name, 2: date and time */
+		$subject = sprintf( __( '[%1$s] Reminder: appointment %2$s', 'anderson-appointment-booking' ), self::site_name(), self::format_time( $booking['start'] ) );
+		self::mail_visitor( $booking, $subject, $lines, false );
+	}
+
+	/**
+	 * The time was changed in Google Calendar.
+	 *
+	 * @param array $booking Booking (already updated).
+	 * @param int   $old     Previous start time.
+	 */
+	public static function email_rescheduled( array $booking, $old ) {
+		$lines = array_merge(
+			array(
+				/* translators: %s: visitor name */
+				sprintf( __( 'Hi %s,', 'anderson-appointment-booking' ), $booking['name'] ),
+				'',
+				/* translators: 1: site name, 2: old date and time */
+				sprintf( __( 'Your appointment with %1$s, previously %2$s, has moved.', 'anderson-appointment-booking' ), self::site_name(), self::format_time( $old ) ),
+				'',
+			),
+			self::details_lines( $booking )
+		);
+		/* translators: 1: site name, 2: new date and time */
+		$subject = sprintf( __( '[%1$s] Appointment moved to %2$s', 'anderson-appointment-booking' ), self::site_name(), self::format_time( $booking['start'] ) );
+		self::mail_visitor( $booking, $subject, $lines, true );
 	}
 
 	/**
@@ -519,7 +794,6 @@ final class AAB_Bookings {
 		if ( '' === $to ) {
 			return;
 		}
-		$site  = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		$lines = array(
 			/* translators: %s: date and time */
 			sprintf( __( 'New appointment: %s', 'anderson-appointment-booking' ), self::format_time( $booking['start'] ) ),
@@ -529,6 +803,10 @@ final class AAB_Bookings {
 			/* translators: %s: email */
 			sprintf( __( 'Email: %s', 'anderson-appointment-booking' ), $booking['email'] ),
 		);
+		if ( '' !== $booking['phone'] ) {
+			/* translators: %s: phone number */
+			$lines[] = sprintf( __( 'Phone: %s', 'anderson-appointment-booking' ), $booking['phone'] );
+		}
 		if ( '' !== $booking['notes'] ) {
 			$lines[] = '';
 			$lines[] = $booking['notes'];
@@ -539,22 +817,21 @@ final class AAB_Bookings {
 			$lines[] = sprintf( __( 'Open in Google Calendar: %s', 'anderson-appointment-booking' ), $booking['event_link'] );
 		}
 		/* translators: 1: site name, 2: visitor name */
-		$subject = sprintf( __( '[%1$s] New booking from %2$s', 'anderson-appointment-booking' ), $site, $booking['name'] );
+		$subject = sprintf( __( '[%1$s] New booking from %2$s', 'anderson-appointment-booking' ), self::site_name(), $booking['name'] );
 		wp_mail( $to, $subject, implode( "\n", $lines ), self::reply_to_header( $booking['email'] ) );
 	}
 
 	/**
-	 * Email both sides about a cancellation.
+	 * Email about a cancellation.
 	 *
 	 * @param array  $booking Booking.
 	 * @param string $by      Who cancelled.
 	 */
 	private static function email_cancelled( array $booking, $by ) {
-		$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		$when = self::format_time( $booking['start'] );
 
 		/* translators: 1: site name, 2: date and time */
-		$subject = sprintf( __( '[%1$s] Appointment cancelled: %2$s', 'anderson-appointment-booking' ), $site, $when );
+		$subject = sprintf( __( '[%1$s] Appointment cancelled: %2$s', 'anderson-appointment-booking' ), self::site_name(), $when );
 
 		if ( $booking['end'] > time() ) {
 			/* translators: 1: visitor name, 2: date and time */
@@ -575,7 +852,7 @@ final class AAB_Bookings {
 	 *
 	 * @return string
 	 */
-	private static function notify_email() {
+	public static function notify_email() {
 		$email = sanitize_email( (string) AAB_Settings::get( 'notify_email' ) );
 		return is_email( $email ) ? $email : (string) get_option( 'admin_email' );
 	}
@@ -663,6 +940,10 @@ final class AAB_Bookings {
 					array(
 						'name'  => __( 'Email', 'anderson-appointment-booking' ),
 						'value' => $b['email'],
+					),
+					array(
+						'name'  => __( 'Phone', 'anderson-appointment-booking' ),
+						'value' => $b['phone'],
 					),
 					array(
 						'name'  => __( 'Notes', 'anderson-appointment-booking' ),

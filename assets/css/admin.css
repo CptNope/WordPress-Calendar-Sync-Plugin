@@ -201,3 +201,17 @@
 	border: 0;
 	background: #fff;
 }
+
+.aab-inline-forms {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.aab-log td {
+	vertical-align: top;
+}
+
+.aab-log-clear {
+	margin-top: 10px;
+}

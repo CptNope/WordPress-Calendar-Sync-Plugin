@@ -111,8 +111,9 @@ $aab_preview = add_query_arg( 'aab_preview', '1', home_url( '/' ) );
 
 			<fieldset class="aab-control">
 				<legend><?php esc_html_e( 'Headings', 'anderson-appointment-booking' ); ?></legend>
-				<label class="aab-choice"><input type="radio" name="aab[style_headings]" value="theme" <?php checked( $s['style_headings'], 'theme' ); ?> <?php disabled( null === $aab_tokens['heading_font'] ); ?>> <?php esc_html_e( 'My theme’s heading font', 'anderson-appointment-booking' ); ?><?php echo null === $aab_tokens['heading_font'] ? ' <span class="aab-hint">' . esc_html__( '(same as body text in this theme)', 'anderson-appointment-booking' ) . '</span>' : ''; ?></label>
-				<label class="aab-choice"><input type="radio" name="aab[style_headings]" value="inherit" <?php checked( 'inherit' === $s['style_headings'] || null === $aab_tokens['heading_font'] ); ?>> <?php esc_html_e( 'Same font as the text around it', 'anderson-appointment-booking' ); ?></label>
+				<?php $aab_font_known = null !== $aab_tokens['heading_font'] || 'theme.json' !== $aab_tokens['source']; ?>
+				<label class="aab-choice"><input type="radio" name="aab[style_headings]" value="theme" <?php checked( $s['style_headings'], 'theme' ); ?> <?php disabled( ! $aab_font_known ); ?>> <?php esc_html_e( 'My theme’s heading font', 'anderson-appointment-booking' ); ?><?php echo ! $aab_font_known ? ' <span class="aab-hint">' . esc_html__( '(same as body text in this theme)', 'anderson-appointment-booking' ) . '</span>' : ''; ?></label>
+				<label class="aab-choice"><input type="radio" name="aab[style_headings]" value="inherit" <?php checked( 'inherit' === $s['style_headings'] || ! $aab_font_known ); ?>> <?php esc_html_e( 'Same font as the text around it', 'anderson-appointment-booking' ); ?></label>
 			</fieldset>
 
 			<details class="aab-control aab-css" <?php echo '' !== trim( (string) $s['custom_css'] ) ? 'open' : ''; ?>>
