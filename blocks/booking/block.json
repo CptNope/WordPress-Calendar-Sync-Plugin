@@ -1,0 +1,24 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "anderson-appointment-booking/booking",
+	"version": "1.0.0",
+	"title": "Appointment Booking",
+	"category": "widgets",
+	"icon": "calendar-alt",
+	"description": "Let visitors pick an open time from your Google Calendar and book it.",
+	"keywords": [ "booking", "appointment", "calendar", "schedule" ],
+	"textdomain": "anderson-appointment-booking",
+	"attributes": {
+		"heading": {
+			"type": "string",
+			"default": ""
+		}
+	},
+	"supports": {
+		"html": false,
+		"align": [ "wide" ],
+		"multiple": false
+	},
+	"editorScript": "file:./index.js"
+}

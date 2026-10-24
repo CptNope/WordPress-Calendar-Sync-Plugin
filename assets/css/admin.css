@@ -1,0 +1,78 @@
+/* Anderson Appointment Booking – settings screen. */
+.aab-admin .aab-card {
+	max-width: 880px;
+	margin: 16px 0;
+	padding: 4px 24px 16px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+.aab-admin .aab-card h2 {
+	margin-top: 1em;
+}
+
+.aab-connection {
+	padding-left: 22px;
+	position: relative;
+}
+
+.aab-connection::before {
+	content: "";
+	position: absolute;
+	left: 4px;
+	top: 0.45em;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: #c3c4c7;
+}
+
+.aab-connection--on::before {
+	background: #00a32a;
+}
+
+.aab-steps {
+	margin: 12px 0 16px;
+}
+
+.aab-steps summary {
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.aab-steps ol {
+	margin-top: 10px;
+}
+
+.aab-steps li {
+	margin-bottom: 8px;
+}
+
+.aab-copy {
+	display: flex;
+	gap: 6px;
+	margin-top: 6px;
+}
+
+.aab-calendar-list label {
+	display: block;
+	margin-bottom: 6px;
+}
+
+.aab-error {
+	color: #b32d2e;
+}
+
+.aab-status--confirmed {
+	color: #00a32a;
+}
+
+.aab-status--cancelled {
+	color: #8c8f94;
+	text-decoration: line-through;
+}
+
+.aab-cancel-link {
+	color: #b32d2e;
+}
