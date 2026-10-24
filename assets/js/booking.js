@@ -52,9 +52,9 @@
 		return node;
 	}
 
-	function Widget( root ) {
+	function Widget( root, cfg ) {
 		this.root = root;
-		this.cfg = JSON.parse( root.getAttribute( 'data-aab-config' ) || '{}' );
+		this.cfg = cfg || JSON.parse( root.getAttribute( 'data-aab-config' ) || '{}' );
 		this.t = this.cfg.i18n || {};
 		this.locale = this.cfg.locale || undefined;
 		this.cache = {};
@@ -79,9 +79,104 @@
 		var now = new Date();
 		this.month = now.getFullYear() + '-' + pad( now.getMonth() + 1 );
 
+		this.probeTheme();
 		this.build();
 		this.load();
 	}
+
+	function parseColor( value ) {
+		var m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+%?))?/.exec( value || '' );
+		if ( ! m ) {
+			return null;
+		}
+		var alpha = m[ 4 ] === undefined ? 1 : ( m[ 4 ].indexOf( '%' ) > 0 ? parseFloat( m[ 4 ] ) / 100 : parseFloat( m[ 4 ] ) );
+		return { r: +m[ 1 ], g: +m[ 2 ], b: +m[ 3 ], a: alpha, hex: '#' + [ m[ 1 ], m[ 2 ], m[ 3 ] ].map( function ( n ) {
+			return pad16( +n );
+		} ).join( '' ) };
+	}
+
+	function pad16( n ) {
+		var s = n.toString( 16 );
+		return s.length < 2 ? '0' + s : s;
+	}
+
+	function lum( c ) {
+		return [ c.r, c.g, c.b ].map( function ( v ) {
+			v /= 255;
+			return v <= 0.03928 ? v / 12.92 : Math.pow( ( v + 0.055 ) / 1.055, 2.4 );
+		} ).reduce( function ( acc, v, i ) {
+			return acc + v * [ 0.2126, 0.7152, 0.0722 ][ i ];
+		}, 0 );
+	}
+
+	function ratio( a, b ) {
+		var x = lum( a );
+		var y = lum( b );
+		return ( Math.max( x, y ) + 0.05 ) / ( Math.min( x, y ) + 0.05 );
+	}
+
+	/*
+	 * For themes that don't publish design tokens (most classic themes), read the theme's
+	 * real button and link styles from the page: a hidden probe button and link are placed
+	 * where the widget sits, so the theme's contextual selectors apply to them.
+	 */
+	Widget.prototype.probeTheme = function () {
+		var root = this.root;
+		var wantAccent = root.classList.contains( 'aab--probe-accent' );
+		var wantRadius = root.classList.contains( 'aab--probe-radius' );
+		if ( ! ( wantAccent || wantRadius ) || ! window.getComputedStyle ) {
+			return;
+		}
+		var host = root.parentNode || document.body;
+		var box = document.createElement( 'div' );
+		box.setAttribute( 'aria-hidden', 'true' );
+		box.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;height:0;overflow:hidden;';
+		var p = document.createElement( 'p' );
+		var a = document.createElement( 'a' );
+		a.href = '#';
+		a.textContent = 'a';
+		p.appendChild( a );
+		var form = document.createElement( 'form' );
+		var b = document.createElement( 'button' );
+		b.type = 'submit';
+		b.textContent = 'b';
+		form.appendChild( b );
+		box.appendChild( p );
+		box.appendChild( form );
+		host.insertBefore( box, root );
+
+		var bs = window.getComputedStyle( b );
+		var bg = parseColor( bs.backgroundColor );
+		var fg = parseColor( bs.color );
+		var link = parseColor( window.getComputedStyle( a ).color );
+		var text = parseColor( window.getComputedStyle( root ).color );
+		var radius = bs.borderTopLeftRadius;
+		host.removeChild( box );
+
+		// Browser-default grey buttons and see-through ones mean the theme doesn't style buttons.
+		var defaults = [ '#efefef', '#f0f0f0', '#e9e9ed', '#dddddd', '#e0e0e0', '#ededed' ];
+		var themedButton = !! ( bg && bg.a > 0.5 && defaults.indexOf( bg.hex ) === -1 );
+
+		if ( wantAccent ) {
+			var accent = null;
+			var on = null;
+			if ( themedButton ) {
+				accent = bg;
+				on = fg && ratio( bg, fg ) >= 3 ? fg : null;
+			} else if ( link && ( ! text || link.hex !== text.hex ) ) {
+				accent = link;
+			}
+			if ( accent ) {
+				var white = { r: 255, g: 255, b: 255 };
+				var dark = { r: 17, g: 17, b: 17 };
+				root.style.setProperty( '--aab-accent', accent.hex );
+				root.style.setProperty( '--aab-on-accent', on ? on.hex : ( ratio( accent, white ) >= ratio( accent, dark ) ? '#ffffff' : '#111111' ) );
+			}
+		}
+		if ( wantRadius && themedButton && /^[\d.]+px$/.test( radius || '' ) ) {
+			root.style.setProperty( '--aab-radius', radius );
+		}
+	};
 
 	Widget.prototype.endpoint = function ( path, params ) {
 		var base = this.cfg.rest;
@@ -169,15 +264,18 @@
 		this.render();
 
 		var range = this.monthRange( key );
-		fetch( this.endpoint( 'availability', range ), { credentials: 'same-origin', headers: { Accept: 'application/json' } } )
-			.then( function ( res ) {
-				return res.json().then( function ( body ) {
-					if ( ! res.ok ) {
-						throw body;
-					}
-					return body;
+		var request = this.cfg.demo
+			? Promise.resolve( this.demoData( range ) )
+			: fetch( this.endpoint( 'availability', range ), { credentials: 'same-origin', headers: { Accept: 'application/json' } } )
+				.then( function ( res ) {
+					return res.json().then( function ( body ) {
+						if ( ! res.ok ) {
+							throw body;
+						}
+						return body;
+					} );
 				} );
-			} )
+		request
 			.then( function ( body ) {
 				if ( key !== self.month ) {
 					return;
@@ -209,6 +307,30 @@
 				self.error = ( err && err.message ) || self.t.error;
 				self.render();
 			} );
+	};
+
+	// Sample availability for previews: weekdays from tomorrow, a few times taken, two months ahead.
+	Widget.prototype.demoData = function ( range ) {
+		var today = new Date();
+		var first = ymd( new Date( Date.UTC( today.getFullYear(), today.getMonth(), today.getDate() ) ) );
+		var lastD = new Date( Date.UTC( today.getFullYear(), today.getMonth() + 2, today.getDate() ) );
+		var step = Math.max( 15, +this.cfg.duration || 30 ) * 60;
+		var days = {};
+		for ( var d = parseYmd( range.from ); ymd( d ) <= range.to; d.setUTCDate( d.getUTCDate() + 1 ) ) {
+			var key = ymd( d );
+			var wd = d.getUTCDay();
+			days[ key ] = [];
+			if ( key <= first || key > ymd( lastD ) || wd === 0 || wd === 6 ) {
+				continue;
+			}
+			var local = new Date( d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 9, 0, 0 ).getTime() / 1000;
+			for ( var t = local, i = 0; t < local + 8 * 3600; t += step, i++ ) {
+				if ( ( i + d.getUTCDate() ) % 4 !== 1 ) {
+					days[ key ].push( t );
+				}
+			}
+		}
+		return { demo: true, duration: +this.cfg.duration || 30, first: first, last: ymd( lastD ), days: days };
 	};
 
 	Widget.prototype.firstOpenDay = function () {
@@ -401,7 +523,9 @@
 		}
 
 		var status = h( 'p', { class: 'aab__message aab__message--error', role: 'alert', hidden: true } );
-		var submit = h( 'button', { type: 'submit', class: 'aab__submit', text: sprintf( t.book, timeText ) } );
+		// In "match my theme" mode on block themes the button also takes the theme's button class.
+		var themed = this.root.classList.contains( 'aab--buttons-theme' ) && this.root.classList.contains( 'aab--wp-buttons' );
+		var submit = h( 'button', { type: 'submit', class: 'aab__submit' + ( themed ? ' wp-element-button' : '' ), text: sprintf( t.book, timeText ) } );
 		form.appendChild( status );
 		form.appendChild( submit );
 
@@ -497,6 +621,15 @@
 			elapsed: Math.round( ( Date.now() - shownAt ) / 1000 ),
 		};
 
+		if ( this.cfg.demo ) {
+			setTimeout( function () {
+				self.result = { start: payload.start, message: self.cfg.message || '', meet: '' };
+				self.view = 'done';
+				self.renderPanel();
+			}, 500 );
+			return;
+		}
+
 		fetch( this.endpoint( 'bookings' ), {
 			method: 'POST',
 			credentials: 'same-origin',
@@ -556,6 +689,17 @@
 		] );
 		this.panel.appendChild( done );
 		done.focus( { preventScroll: true } );
+	};
+
+	// Public hook so the block editor (and developers) can mount a widget on any element.
+	window.AABBooking = {
+		mount: function ( root, cfg ) {
+			return new Widget( root, cfg );
+		},
+		// Re-read the theme's colors after the widget's classes change (used by previews).
+		probe: function ( root ) {
+			Widget.prototype.probeTheme.call( { root: root } );
+		},
 	};
 
 	function boot() {

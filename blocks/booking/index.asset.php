@@ -6,6 +6,6 @@
  */
 
 return array(
-	'dependencies' => array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components', 'wp-i18n' ),
-	'version'      => '1.0.0',
+	'dependencies' => array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components', 'wp-i18n', 'aab-booking' ),
+	'version'      => '1.1.0',
 );

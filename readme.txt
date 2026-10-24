@@ -4,7 +4,7 @@ Tags: appointment, booking, google calendar, scheduling, calendar
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -20,6 +20,8 @@ Anderson Appointment Booking puts a booking calendar on your site that knows whe
 * Slot locking and a live re-check at booking time to prevent double bookings
 * Confirmation email with a self-service cancel link; owner notifications
 * Times shown in the visitor's own timezone
+* Matches your theme automatically (block and classic themes): fonts, colors, buttons, fields, corners
+* Appearance settings with a live preview inside your theme, per-block overrides, shortcode attributes and CSS variables
 * Block and shortcode: `[anderson_booking]`
 * Narrow Google permissions; credentials encrypted at rest
 * No build tools, no Composer, no extra services
@@ -56,11 +58,22 @@ No times are offered until it is reachable again, so nobody can book over an eve
 
 Your Google OAuth app is in Testing mode. Publish it to In production in Google Cloud and connect again.
 
+= Can I make it match my site? =
+
+By default it does: it uses your theme's fonts, button and field styles, colors and corner radius. Fine-tune it under Appointments → Settings → Appearance (with a live preview), per block in the editor, with shortcode attributes, or with CSS variables such as `--aab-accent` and `--aab-radius`.
+
 = Does it work with page caching? =
 
 Yes. Times are loaded through the REST API when the page opens, so cached pages still show current availability.
 
 == Changelog ==
+
+= 1.1.0 =
+* New: "Match my theme" styling for block and classic themes (colors, buttons, fields, corners, heading font).
+* New: Appearance settings with a live preview rendered in your theme.
+* New: Per-block style controls and live preview in the editor; block color, typography and spacing support.
+* New: Shortcode style attributes, custom CSS, CSS variables and styling filters.
+* The calendar adapts to the width of its container; the cancel page uses your theme's styles.
 
 = 1.0.0 =
 * First release.

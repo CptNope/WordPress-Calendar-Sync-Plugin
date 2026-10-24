@@ -2,7 +2,7 @@
 	"$schema": "https://schemas.wp.org/trunk/block.json",
 	"apiVersion": 3,
 	"name": "anderson-appointment-booking/booking",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"title": "Appointment Booking",
 	"category": "widgets",
 	"icon": "calendar-alt",
@@ -13,12 +13,51 @@
 		"heading": {
 			"type": "string",
 			"default": ""
+		},
+		"accent": {
+			"type": "string",
+			"default": ""
+		},
+		"surface": {
+			"type": "string",
+			"default": ""
+		},
+		"buttons": {
+			"type": "string",
+			"default": ""
+		},
+		"radius": {
+			"type": "string",
+			"default": ""
+		},
+		"density": {
+			"type": "string",
+			"default": ""
+		},
+		"headings": {
+			"type": "string",
+			"default": ""
 		}
 	},
 	"supports": {
 		"html": false,
-		"align": [ "wide" ],
-		"multiple": false
+		"multiple": false,
+		"align": [ "wide", "full" ],
+		"color": {
+			"text": true,
+			"background": true,
+			"link": false
+		},
+		"typography": {
+			"fontSize": true,
+			"lineHeight": true,
+			"__experimentalFontFamily": true
+		},
+		"spacing": {
+			"margin": true,
+			"padding": true
+		}
 	},
-	"editorScript": "file:./index.js"
+	"editorScript": "file:./index.js",
+	"style": "aab-booking"
 }

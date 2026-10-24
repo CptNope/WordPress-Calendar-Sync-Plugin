@@ -88,6 +88,25 @@ final class AAB_Admin {
 		wp_enqueue_style( 'aab-admin', AAB_URL . 'assets/css/admin.css', array(), AAB_VERSION );
 		wp_enqueue_style( 'wp-color-picker' );
 		wp_enqueue_script( 'aab-admin', AAB_URL . 'assets/js/admin.js', array( 'wp-color-picker' ), AAB_VERSION, true );
+		$tokens = AAB_Style::theme_tokens();
+		wp_localize_script(
+			'aab-admin',
+			'aabAdmin',
+			array(
+				'tokens'    => array(
+					'accent'      => $tokens['accent'],
+					'onAccent'    => $tokens['on_accent'],
+					'base'        => $tokens['base'],
+					'radius'      => $tokens['radius'],
+					'headingFont' => $tokens['heading_font'],
+					'json'        => 'theme.json' === $tokens['source'],
+				),
+				'radii'     => AAB_Style::radii(),
+				'densities' => AAB_Style::densities(),
+				'origin'    => untrailingslashit( home_url() ),
+				'copied'    => __( 'Copied', 'anderson-appointment-booking' ),
+			)
+		);
 	}
 
 	/**
@@ -233,6 +252,18 @@ final class AAB_Admin {
 		if ( isset( $in['accent'] ) ) {
 			$color         = sanitize_hex_color( $in['accent'] );
 			$new['accent'] = $color ? $color : $cur['accent'];
+		}
+		foreach ( array_keys( AAB_Style::choices() ) as $key ) {
+			if ( isset( $in[ $key ] ) ) {
+				$new[ $key ] = AAB_Style::clean( $key, $in[ $key ] );
+			}
+		}
+		if ( isset( $in['style_bg_color'] ) ) {
+			$color                 = sanitize_hex_color( $in['style_bg_color'] );
+			$new['style_bg_color'] = $color ? $color : $cur['style_bg_color'];
+		}
+		if ( isset( $in['custom_css'] ) && current_user_can( 'unfiltered_html' ) ) {
+			$new['custom_css'] = trim( str_ireplace( '</style', '', wp_strip_all_tags( $in['custom_css'] ) ) );
 		}
 		foreach ( array( 'add_meet', 'invite_guest', 'delete_data' ) as $key ) {
 			$new[ $key ] = empty( $in[ $key ] ) ? 0 : 1;

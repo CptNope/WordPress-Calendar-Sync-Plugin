@@ -258,12 +258,10 @@ $aab_has_secret = $secret_locked || '' !== AAB_Settings::client_secret();
 						<p class="description"><?php esc_html_e( 'When filled in, visitors must tick a box with this text before booking.', 'anderson-appointment-booking' ); ?></p>
 					</td>
 				</tr>
-				<tr>
-					<th scope="row"><label for="aab-accent"><?php esc_html_e( 'Accent color', 'anderson-appointment-booking' ); ?></label></th>
-					<td><input type="text" id="aab-accent" name="aab[accent]" value="<?php echo esc_attr( $s['accent'] ); ?>" class="aab-color" data-default-color="#2e7d4f"></td>
-				</tr>
 			</table>
 		</div>
+
+		<?php include AAB_DIR . 'includes/views/appearance.php'; ?>
 
 		<div class="aab-card">
 			<h2><?php esc_html_e( 'Show the booking calendar', 'anderson-appointment-booking' ); ?></h2>

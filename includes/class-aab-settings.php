@@ -73,6 +73,14 @@ final class AAB_Settings {
 			'confirmation_message' => "You're booked. A confirmation is on its way to your inbox.",
 			'consent_text'         => '',
 			'accent'               => '#2e7d4f',
+			'style_accent'         => 'theme',
+			'style_buttons'        => 'theme',
+			'style_radius'         => 'auto',
+			'style_background'     => 'none',
+			'style_bg_color'       => '#ffffff',
+			'style_density'        => 'comfortable',
+			'style_headings'       => 'theme',
+			'custom_css'           => '',
 			'delete_data'          => 0,
 		);
 	}

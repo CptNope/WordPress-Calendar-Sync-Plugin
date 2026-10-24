@@ -24,9 +24,24 @@ final class AAB_Frontend {
 	 */
 	public static function init() {
 		add_shortcode( 'anderson_booking', array( __CLASS__, 'shortcode' ) );
-		add_action( 'init', array( __CLASS__, 'register_assets' ) );
+		add_action( 'init', array( __CLASS__, 'register_assets' ), 5 );
 		add_action( 'init', array( __CLASS__, 'register_block' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'cancel_page' ) );
+		add_action( 'template_redirect', array( __CLASS__, 'preview_page' ) );
+	}
+
+	/**
+	 * Style keys that a block or shortcode may override, mapped to their setting.
+	 *
+	 * @return array<string,string> attribute => setting key
+	 */
+	public static function style_attributes() {
+		return array(
+			'buttons'  => 'style_buttons',
+			'radius'   => 'style_radius',
+			'density'  => 'style_density',
+			'headings' => 'style_headings',
+		);
 	}
 
 	/**
@@ -35,6 +50,11 @@ final class AAB_Frontend {
 	public static function register_assets() {
 		wp_register_style( 'aab-booking', AAB_URL . 'assets/css/booking.css', array(), AAB_VERSION );
 		wp_register_script( 'aab-booking', AAB_URL . 'assets/js/booking.js', array(), AAB_VERSION, true );
+
+		$css = AAB_Style::custom_css();
+		if ( '' !== $css ) {
+			wp_add_inline_style( 'aab-booking', $css );
+		}
 	}
 
 	/**
@@ -44,11 +64,44 @@ final class AAB_Frontend {
 		if ( ! function_exists( 'register_block_type' ) ) {
 			return;
 		}
-		register_block_type(
+		$block = register_block_type(
 			AAB_DIR . 'blocks/booking',
 			array(
 				'render_callback' => array( __CLASS__, 'render_block' ),
 			)
+		);
+		if ( $block && ! empty( $block->editor_script_handles ) ) {
+			add_action(
+				'enqueue_block_editor_assets',
+				static function () use ( $block ) {
+					wp_add_inline_script(
+						$block->editor_script_handles[0],
+						'window.aabEditor = ' . wp_json_encode( self::editor_data() ) . ';',
+						'before'
+					);
+				}
+			);
+		}
+	}
+
+	/**
+	 * Data the block editor needs to draw a live, styled preview.
+	 *
+	 * @return array
+	 */
+	public static function editor_data() {
+		$resolved = AAB_Style::resolve();
+		$tokens   = AAB_Style::theme_tokens();
+		return array(
+			'config'   => self::config( array( 'heading' => '' ), true ),
+			'vars'     => $resolved['vars'],
+			'classes'  => $resolved['classes'],
+			'radii'    => AAB_Style::radii(),
+			'spaces'   => AAB_Style::densities(),
+			'theme'    => array(
+				'radius'      => $tokens['radius'],
+				'headingFont' => $tokens['heading_font'],
+			),
 		);
 	}
 
@@ -59,8 +112,14 @@ final class AAB_Frontend {
 	 * @return string
 	 */
 	public static function render_block( $attributes ) {
-		$heading = isset( $attributes['heading'] ) ? (string) $attributes['heading'] : '';
-		$html    = self::render( array( 'heading' => $heading ) );
+		$atts = array( 'heading' => isset( $attributes['heading'] ) ? (string) $attributes['heading'] : '' );
+		foreach ( array_keys( self::style_attributes() ) as $key ) {
+			$atts[ $key ] = isset( $attributes[ $key ] ) ? (string) $attributes[ $key ] : '';
+		}
+		$atts['accent']     = isset( $attributes['accent'] ) ? (string) $attributes['accent'] : '';
+		$atts['background'] = isset( $attributes['surface'] ) ? (string) $attributes['surface'] : '';
+
+		$html = self::render( $atts );
 		return function_exists( 'get_block_wrapper_attributes' )
 			? '<div ' . get_block_wrapper_attributes() . '>' . $html . '</div>'
 			: $html;
@@ -69,12 +128,23 @@ final class AAB_Frontend {
 	/**
 	 * Shortcode callback.
 	 *
+	 * Style attributes are optional and override Appointments → Settings → Appearance:
+	 * [anderson_booking heading="Book a call" accent="#0b5fff" buttons="plugin" radius="round" density="compact" background="#ffffff" headings="inherit"]
+	 *
 	 * @param array|string $atts Attributes.
 	 * @return string
 	 */
 	public static function shortcode( $atts ) {
 		$atts = shortcode_atts(
-			array( 'heading' => '' ),
+			array(
+				'heading'    => '',
+				'accent'     => '',
+				'background' => '',
+				'buttons'    => '',
+				'radius'     => '',
+				'density'    => '',
+				'headings'   => '',
+			),
 			is_array( $atts ) ? $atts : array(),
 			'anderson_booking'
 		);
@@ -82,35 +152,138 @@ final class AAB_Frontend {
 	}
 
 	/**
-	 * Widget markup. The script builds the calendar inside it; without JavaScript a short message shows.
+	 * Script configuration for one widget.
 	 *
 	 * @param array $atts Attributes.
-	 * @return string
+	 * @param bool  $demo Use sample times instead of live data (previews).
+	 * @return array
 	 */
-	public static function render( array $atts ) {
-		++self::$instance;
-		wp_enqueue_style( 'aab-booking' );
-		wp_enqueue_script( 'aab-booking' );
-
-		$accent = sanitize_hex_color( (string) AAB_Settings::get( 'accent' ) );
-		$config = array(
+	private static function config( array $atts, $demo = false ) {
+		return array(
 			'rest'      => esc_url_raw( rest_url( AAB_Rest::NS . '/' ) ),
 			'locale'    => str_replace( '_', '-', determine_locale() ),
 			'weekStart' => (int) get_option( 'start_of_week', 1 ),
 			'consent'   => (string) AAB_Settings::get( 'consent_text' ),
-			'heading'   => (string) $atts['heading'],
+			'heading'   => isset( $atts['heading'] ) ? (string) $atts['heading'] : '',
+			'duration'  => (int) AAB_Settings::get( 'duration' ),
+			'message'   => (string) AAB_Settings::get( 'confirmation_message' ),
+			'demo'      => (bool) $demo,
 			'i18n'      => self::strings(),
 		);
+	}
 
-		$style = $accent ? '--aab-accent:' . $accent . ';' : '';
+	/**
+	 * Widget markup. The script builds the calendar inside it; without JavaScript a short message shows.
+	 *
+	 * @param array $atts Attributes: heading, plus optional style overrides (accent, background, buttons, radius, density, headings).
+	 * @param bool  $demo Render with sample times (used by the settings preview).
+	 * @return string
+	 */
+	public static function render( array $atts, $demo = false ) {
+		++self::$instance;
+
+		/**
+		 * Whether to load the plugin's stylesheet. Return false to style the widget entirely from your theme.
+		 *
+		 * @param bool $load Load it.
+		 */
+		if ( apply_filters( 'aab_enqueue_styles', true ) ) {
+			wp_enqueue_style( 'aab-booking' );
+		}
+		wp_enqueue_script( 'aab-booking' );
+
+		$overrides = array();
+		foreach ( self::style_attributes() as $attr => $setting ) {
+			if ( ! empty( $atts[ $attr ] ) ) {
+				$overrides[ $setting ] = $atts[ $attr ];
+			}
+		}
+		if ( ! empty( $atts['accent'] ) ) {
+			$overrides['accent'] = $atts['accent'];
+		}
+		if ( ! empty( $atts['background'] ) ) {
+			if ( in_array( $atts['background'], array( 'none', 'theme' ), true ) ) {
+				$overrides['style_background'] = $atts['background'];
+			} else {
+				$overrides['background_color'] = $atts['background'];
+			}
+		}
+
+		$style = AAB_Style::resolve( $overrides );
 
 		return sprintf(
-			'<div class="aab" id="aab-%1$d" style="%2$s" data-aab-config="%3$s"><noscript>%4$s</noscript></div>',
+			'<div class="%1$s" id="aab-%2$d" style="%3$s" data-aab-config="%4$s"><noscript>%5$s</noscript></div>',
+			esc_attr( implode( ' ', array_merge( array( 'aab' ), $style['classes'] ) ) ),
 			self::$instance,
-			esc_attr( $style ),
-			esc_attr( wp_json_encode( $config ) ),
+			esc_attr( AAB_Style::inline( $style['vars'] ) ),
+			esc_attr( wp_json_encode( self::config( $atts, $demo ) ) ),
 			esc_html__( 'Turn on JavaScript to book an appointment.', 'anderson-appointment-booking' )
 		);
+	}
+
+	/**
+	 * Appearance preview: the widget with sample times, rendered inside the site's own theme
+	 * (its fonts, colors and buttons). Loaded in an iframe on the settings screen; admins only.
+	 */
+	public static function preview_page() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only, capability-checked preview.
+		if ( ! isset( $_GET['aab_preview'] ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this preview.', 'anderson-appointment-booking' ), 403 );
+		}
+		nocache_headers();
+		show_admin_bar( false );
+		add_filter( 'wp_robots', 'wp_robots_no_robots' );
+
+		$widget = self::render( array( 'heading' => '' ), true );
+		$bodyc  = function_exists( 'wp_is_block_theme' ) && wp_is_block_theme() ? 'aab-preview wp-site-blocks' : 'aab-preview';
+		status_header( 200 );
+		?>
+<!doctype html>
+<html <?php language_attributes(); ?>>
+<head>
+<meta charset="<?php bloginfo( 'charset' ); ?>">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+		<?php wp_head(); ?>
+<style>
+	html { margin-top: 0 !important; }
+	body.aab-preview-body { margin: 0; }
+	.aab-preview { padding: 8px 24px 32px; }
+	.aab-preview .aab { margin-top: 0; }
+</style>
+</head>
+<body <?php body_class( 'aab-preview-body' ); ?>>
+<div class="<?php echo esc_attr( $bodyc ); ?>">
+<main class="entry-content is-layout-constrained">
+		<?php echo $widget; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts in render(). ?>
+</main>
+</div>
+<script>
+/* Live updates from the settings screen (same origin only). */
+window.addEventListener( 'message', function ( e ) {
+	if ( e.origin !== window.location.origin || ! e.data || e.data.type !== 'aab-style' ) { return; }
+	var el = document.querySelector( '.aab' );
+	if ( ! el ) { return; }
+	el.style.cssText = e.data.style;
+	el.className = 'aab aab--ready ' + e.data.classes.join( ' ' );
+	var submit = el.querySelector( '.aab__submit' );
+	if ( submit ) { submit.classList.toggle( 'wp-element-button', e.data.classes.indexOf( 'aab--buttons-theme' ) !== -1 && e.data.classes.indexOf( 'aab--wp-buttons' ) !== -1 ); }
+	if ( window.AABBooking ) { window.AABBooking.probe( el ); }
+	if ( typeof e.data.css !== 'string' ) { return; }
+	var css = document.getElementById( 'aab-preview-custom-css' );
+	if ( ! css ) { css = document.createElement( 'style' ); css.id = 'aab-preview-custom-css'; document.head.appendChild( css ); }
+	var inline = document.getElementById( 'aab-booking-inline-css' );
+	if ( inline ) { inline.disabled = true; }
+	css.textContent = e.data.css || '';
+} );
+</script>
+		<?php wp_footer(); ?>
+</body>
+</html>
+		<?php
+		exit;
 	}
 
 	/**
@@ -197,11 +370,14 @@ final class AAB_Frontend {
 			/* translators: 1: name, 2: date and time */
 			$body = '<p>' . esc_html( sprintf( __( '%1$s, your appointment is on %2$s.', 'anderson-appointment-booking' ), $booking['name'], AAB_Bookings::format_time( $booking['start'] ) ) ) . '</p>'
 				. '<form method="post"><input type="hidden" name="aab_confirm_cancel" value="1">'
-				. '<button type="submit" class="aab-cancel__button">' . esc_html__( 'Cancel appointment', 'anderson-appointment-booking' ) . '</button></form>'
+				. '<button type="submit" class="aab-cancel__button' . ( 'theme' === AAB_Settings::get( 'style_buttons' ) && 'theme.json' === AAB_Style::theme_tokens()['source'] ? ' wp-element-button' : '' ) . '">' . esc_html__( 'Cancel appointment', 'anderson-appointment-booking' ) . '</button></form>'
 				. '<p class="aab-cancel__keep"><a href="' . esc_url( home_url( '/' ) ) . '">' . esc_html__( 'Keep it and go back to the site', 'anderson-appointment-booking' ) . '</a></p>';
 		}
 
-		$accent = sanitize_hex_color( (string) AAB_Settings::get( 'accent' ) );
+		$style = AAB_Style::resolve();
+		wp_enqueue_style( 'aab-booking' );
+		show_admin_bar( false );
+		add_filter( 'wp_robots', 'wp_robots_no_robots' );
 		status_header( 200 );
 		?>
 <!doctype html>
@@ -209,16 +385,16 @@ final class AAB_Frontend {
 <head>
 <meta charset="<?php bloginfo( 'charset' ); ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
-<title><?php echo esc_html( $title . ' – ' . wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ); ?></title>
-<link rel="stylesheet" href="<?php echo esc_url( AAB_URL . 'assets/css/booking.css?ver=' . AAB_VERSION ); ?>"><?php // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- standalone page without wp_head(). ?>
+		<?php wp_head(); // Loads the theme's fonts, colors and button styles so the page looks like the site. ?>
+<style>html { margin-top: 0 !important; }</style>
 </head>
-<body class="aab-cancel-page">
-<main class="aab aab-cancel" style="<?php echo esc_attr( $accent ? '--aab-accent:' . $accent : '' ); ?>">
+<body <?php body_class( 'aab-cancel-page' ); ?>>
+<main class="<?php echo esc_attr( implode( ' ', array_merge( array( 'aab', 'aab-cancel' ), $style['classes'] ) ) ); ?>" style="<?php echo esc_attr( AAB_Style::inline( $style['vars'] ) ); ?>">
 <p class="aab-cancel__site"><?php echo esc_html( wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ); ?></p>
 <h1><?php echo esc_html( $title ); ?></h1>
 		<?php echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every dynamic part of $body is escaped where it is built above. ?>
 </main>
+		<?php wp_footer(); ?>
 </body>
 </html>
 		<?php
