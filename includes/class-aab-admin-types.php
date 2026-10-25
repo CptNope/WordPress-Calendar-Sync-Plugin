@@ -231,6 +231,25 @@ final class AAB_Admin_Types {
 		<h1 class="wp-heading-inline"><?php esc_html_e( 'Appointment types', 'anderson-appointment-booking' ); ?></h1>
 		<a href="<?php echo esc_url( self::url( array( 'edit' => 'new' ) ) ); ?>" class="page-title-action"><?php esc_html_e( 'Add appointment type', 'anderson-appointment-booking' ); ?></a>
 		<hr class="wp-header-end">
+		<?php
+		$paid = array_filter(
+			$types,
+			static function ( $t ) {
+				return ! empty( $t['active'] ) && AAB_Payments::is_paid( $t );
+			}
+		);
+		if ( $paid && ! AAB_Payments::ready() ) :
+			?>
+			<div class="notice notice-warning inline"><p>
+				<?php
+				printf(
+					/* translators: %s: link to payment settings */
+					esc_html__( 'Some types have a price but Stripe isn’t set up, so visitors can’t see them yet. Set up %s.', 'anderson-appointment-booking' ),
+					'<a href="' . esc_url( AAB_Admin::page_url() . '#aab-payments' ) . '">' . esc_html__( 'Stripe payments', 'anderson-appointment-booking' ) . '</a>'
+				);
+				?>
+			</p></div>
+		<?php endif; ?>
 		<p class="description aab-types-intro"><?php esc_html_e( 'Visitors pick one of these first, then a time. Each type can have its own length, hours and questions; buffers, notice, days off and the booking window are shared and set under Settings.', 'anderson-appointment-booking' ); ?></p>
 
 		<table class="widefat striped aab-types-table">
@@ -238,6 +257,7 @@ final class AAB_Admin_Types {
 				<tr>
 					<th scope="col"><?php esc_html_e( 'Name', 'anderson-appointment-booking' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Length', 'anderson-appointment-booking' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Price', 'anderson-appointment-booking' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Hours', 'anderson-appointment-booking' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Questions', 'anderson-appointment-booking' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Shortcode for this type only', 'anderson-appointment-booking' ); ?></th>
@@ -276,6 +296,7 @@ final class AAB_Admin_Types {
 						echo esc_html( sprintf( __( '%d min', 'anderson-appointment-booking' ), $t['duration'] ) );
 						?>
 					</td>
+					<td><?php echo esc_html( $t['price'] ? AAB_Stripe::format( $t['price'], AAB_Payments::currency() ) : __( 'Free', 'anderson-appointment-booking' ) ); ?></td>
 					<td><?php echo esc_html( self::hours_summary( $t ) ); ?></td>
 					<td><?php echo esc_html( number_format_i18n( count( $t['questions'] ) ) ); ?></td>
 					<td><code class="aab-code"><?php echo esc_html( $code ); ?></code></td>
@@ -364,6 +385,25 @@ final class AAB_Admin_Types {
 						<td>
 							<input type="number" min="5" max="480" id="aab-type-interval" name="type[interval]" value="<?php echo esc_attr( $type['interval'] ); ?>" class="small-text"> <?php esc_html_e( 'minutes', 'anderson-appointment-booking' ); ?>
 							<p class="description"><?php esc_html_e( 'E.g. 30 offers 9:00, 9:30, 10:00…', 'anderson-appointment-booking' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="aab-type-price"><?php esc_html_e( 'Price', 'anderson-appointment-booking' ); ?></label></th>
+						<td>
+							<input type="text" inputmode="decimal" id="aab-type-price" name="type[price]" value="<?php echo esc_attr( $type['price'] ? AAB_Stripe::from_minor( $type['price'], AAB_Payments::currency() ) : '' ); ?>" class="small-text" placeholder="0"> <?php echo esc_html( strtoupper( AAB_Payments::currency() ) ); ?>
+							<p class="description">
+								<?php
+								if ( AAB_Stripe::enabled() ) {
+									esc_html_e( 'Leave empty or 0 for free. Paid appointments are confirmed after payment on Stripe.', 'anderson-appointment-booking' );
+								} else {
+									printf(
+										/* translators: %s: link to payment settings */
+										esc_html__( 'Leave empty for free. To charge for this type, first set up %s.', 'anderson-appointment-booking' ),
+										'<a href="' . esc_url( AAB_Admin::page_url() . '#aab-payments' ) . '">' . esc_html__( 'Stripe payments', 'anderson-appointment-booking' ) . '</a>'
+									);
+								}
+								?>
+							</p>
 						</td>
 					</tr>
 					<tr>

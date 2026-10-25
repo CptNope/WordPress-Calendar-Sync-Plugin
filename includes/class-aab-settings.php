@@ -71,6 +71,13 @@ final class AAB_Settings {
 			'reminder_hours'       => 24,
 			'retention_days'       => 0,
 			'change_cutoff'        => 0,
+			'stripe_secret'        => '', // Encrypted.
+			'stripe_webhook_secret' => '', // Encrypted.
+			'currency'             => 'usd',
+			'refund_cutoff'        => 24,
+			'ms_client_id'         => '',
+			'ms_client_secret'     => '', // Encrypted.
+			'ms_calendars'         => array(),
 			'max_reschedules'      => 0,
 			'event_title'          => 'Appointment with {name}',
 			'location'             => '',

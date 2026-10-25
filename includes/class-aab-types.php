@@ -61,6 +61,7 @@ final class AAB_Types {
 			'notes'        => 1,
 			'questions'    => array(),
 			'active'       => 1,
+			'price'        => 0, // Minor units (cents); 0 = free.
 		);
 	}
 
@@ -141,7 +142,7 @@ final class AAB_Types {
 	 * @return array|null
 	 */
 	public static function first() {
-		$active = self::active();
+		$active = self::bookable();
 		return $active ? $active[0] : null;
 	}
 
@@ -309,6 +310,7 @@ final class AAB_Types {
 		$t['meet']        = isset( $in['meet'] ) && in_array( $in['meet'], array( 'default', 'on', 'off' ), true ) ? $in['meet'] : 'default';
 		$t['notes']       = empty( $in['notes'] ) ? 0 : 1;
 		$t['active']      = empty( $in['active'] ) ? 0 : 1;
+		$t['price']       = isset( $in['price'] ) ? AAB_Stripe::to_minor( $in['price'], AAB_Payments::currency() ) : 0;
 
 		$t['custom_hours'] = empty( $in['custom_hours'] ) ? 0 : 1;
 		foreach ( AAB_Settings::weekdays() as $day ) {
@@ -376,9 +378,29 @@ final class AAB_Types {
 	public static function public_list() {
 		$out = array();
 		foreach ( self::active() as $t ) {
+			// Paid types are hidden while payments aren't set up (the types screen warns about it).
+			if ( AAB_Payments::is_paid( $t ) && ! AAB_Payments::ready() ) {
+				continue;
+			}
 			$out[] = self::public_type( $t );
 		}
 		return $out;
+	}
+
+	/**
+	 * Types visitors can actually book right now (visible, and payable if paid).
+	 *
+	 * @return array[]
+	 */
+	public static function bookable() {
+		return array_values(
+			array_filter(
+				self::active(),
+				static function ( $t ) {
+					return ! AAB_Payments::is_paid( $t ) || AAB_Payments::ready();
+				}
+			)
+		);
 	}
 
 	/**
@@ -407,6 +429,8 @@ final class AAB_Types {
 			'video'       => self::wants_meet( $t ),
 			'location'    => self::location( $t ),
 			'questions'   => $questions,
+			'price'       => AAB_Payments::price( $t ),
+			'priceText'   => AAB_Payments::price( $t ) ? AAB_Stripe::format( AAB_Payments::price( $t ), AAB_Payments::currency() ) : '',
 		);
 	}
 

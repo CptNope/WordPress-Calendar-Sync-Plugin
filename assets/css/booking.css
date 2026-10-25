@@ -789,3 +789,23 @@
 	color: var(--aab-on-accent);
 	font-weight: 600;
 }
+
+/* Paid appointments -------------------------------------------------------- */
+
+.aab .aab__type-price {
+	justify-self: start;
+	margin-top: 2px;
+	padding: 1px 8px;
+	border-radius: 99px;
+	background: var(--aab-tint);
+	color: var(--aab-accent);
+	font-size: 0.85em;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.aab .aab__pay-note {
+	margin: 0 0 10px;
+	color: var(--aab-muted);
+	font-size: 0.875em;
+}

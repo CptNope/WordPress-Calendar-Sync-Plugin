@@ -319,3 +319,22 @@
 .aab-question:first-child .aab-question__up {
 	visibility: hidden;
 }
+
+.aab-inline-check {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: 10px;
+}
+
+.aab-status--error {
+	color: #b32d2e;
+}
+
+.aab-status--awaiting_payment {
+	color: #996800;
+}
+
+.aab-status--expired {
+	color: #8c8f94;
+}

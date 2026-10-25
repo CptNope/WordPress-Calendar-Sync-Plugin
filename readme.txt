@@ -4,7 +4,7 @@ Tags: appointment, booking, google calendar, scheduling, calendar
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 1.4.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -14,7 +14,8 @@ Let visitors book appointments with you. Availability comes live from your Googl
 
 Anderson Appointment Booking puts a booking calendar on your site that knows when you're actually free. It reads free/busy times from your Google Calendar, offers only open slots within the hours you set, and adds each booking to your calendar — with a Google Meet link and a guest invite if you like.
 
-* Live availability from one or more Google calendars
+* Live availability from one or more Google calendars, plus optional Outlook / Microsoft 365 calendars
+* Paid appointments with Stripe Checkout: the time is held while the visitor pays, confirmed only after payment, refunded automatically by your policy
 * Appointment types, each with its own length, hours, location, video call and booking questions
 * Custom booking questions: short answer, long answer, dropdown, checkbox
 * Visitors can reschedule or cancel from a link in every email, with a cut-off you choose
@@ -41,6 +42,14 @@ This plugin connects to Google's OAuth and Google Calendar APIs, using the Googl
 * Data sent when a visitor views the booking calendar: the time range being viewed and the IDs of the calendars to check (from your server to Google).
 * Data sent when a visitor books: the appointment time and the name, email address and notes the visitor entered, which become a Google Calendar event (and, if enabled, a guest invite emailed by Google).
 * Google's terms: https://policies.google.com/terms — privacy policy: https://policies.google.com/privacy
+
+Stripe (optional, only when you add Stripe keys and give an appointment type a price) processes payments on its hosted Checkout page. When a visitor books a paid appointment, your server sends Stripe the price, currency, appointment name and time, and the visitor's email address; the visitor enters payment details directly on Stripe. Stripe sends payment notifications back to your site. Refunds are requested from Stripe when a paid booking is cancelled under your refund policy.
+
+* Stripe's terms: https://stripe.com/legal/ssa — privacy policy: https://stripe.com/privacy
+
+Microsoft Graph (optional, only when you connect an Outlook / Microsoft 365 account) is used to list your calendars and read the start, end and free/busy status of events in the calendars you choose, for the dates visitors are viewing. Nothing is written to Microsoft and no visitor data is sent to it.
+
+* Microsoft's terms: https://www.microsoft.com/servicesagreement — privacy statement: https://privacy.microsoft.com/privacystatement
 
 == Installation ==
 
@@ -84,11 +93,26 @@ Yes. Every email links to a page where they can pick a new time (the same calend
 
 Yes. Under Appointments → Appointment types, add as many as you like, each with its own length, start-time spacing, hours, location, video setting and questions. Visitors pick a type first. Use type="…" in the shortcode, or the block setting, to show just one.
 
+= Can I charge for appointments? =
+
+Yes. Add your Stripe keys under Appointments → Settings → Payments and give an appointment type a price. Visitors pay on Stripe's secure checkout page; the time is held for 30 minutes while they pay, and the booking is confirmed only once the payment succeeds. When you cancel, the visitor is refunded in full; when they cancel, they're refunded if it's before the cut-off you set.
+
+= My work meetings are in Outlook. Can they block times? =
+
+Yes. Connect Outlook / Microsoft 365 under Appointments → Settings and choose which of its calendars to check. Busy, tentative and out-of-office events (including recurring meetings) block times. Bookings are still created in Google Calendar.
+
 = Does it work with page caching? =
 
 Yes. Times are loaded through the REST API when the page opens, so cached pages still show current availability.
 
 == Changelog ==
+
+= 1.4.0 =
+* New: Paid appointment types with Stripe Checkout. The time is held while the visitor pays, the booking is confirmed only after payment (by webhook, the visitor's return, or the hourly check), and nothing is ever confirmed on the browser's word alone.
+* New: Automatic refunds: always when you cancel or delete the event in Google Calendar; for visitor cancellations before a cut-off you set. Failed refunds are flagged and emailed to you.
+* New: Outlook / Microsoft 365 calendars as extra conflict calendars, with recurring meetings, via Microsoft Graph (read-only).
+* New: Payment column and amounts in the bookings list and CSV; payment status on the visitor's manage page.
+* Improved: Paid bookings whose Google event can't be created yet keep their slot and are retried hourly.
 
 = 1.3.0 =
 * New: Appointment types with their own length, start-time spacing, hours, location, video-call setting and questions. Visitors pick a type, then a time.

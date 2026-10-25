@@ -230,7 +230,8 @@ final class AAB_Availability {
 				'end'      => (int) $exclude['end'],
 			)
 			: null;
-		$key       = 'aab_busy_' . md5( $from . '|' . $to . '|' . implode( ',', $calendars ) . '|' . (int) get_option( self::GENERATION_OPTION, 0 ) . '|' . ( $skip ? implode( ',', $skip ) : '' ) );
+		$outlook   = AAB_Microsoft::active();
+		$key       = 'aab_busy_' . md5( $from . '|' . $to . '|' . implode( ',', $calendars ) . '|' . (int) get_option( self::GENERATION_OPTION, 0 ) . '|' . ( $skip ? implode( ',', $skip ) : '' ) . '|' . ( $outlook ? implode( ',', (array) AAB_Settings::get( 'ms_calendars' ) ) : '' ) );
 		if ( ! $fresh ) {
 			$cached = get_transient( $key );
 			if ( is_array( $cached ) ) {
@@ -238,6 +239,11 @@ final class AAB_Availability {
 			}
 		}
 		$busy = AAB_Google::busy( $from, $to, $calendars, $skip );
+		if ( ! is_wp_error( $busy ) && $outlook ) {
+			// Outlook conflict calendars: if they can't be read, offer nothing rather than risk a clash.
+			$more = AAB_Microsoft::busy( $from, $to );
+			$busy = is_wp_error( $more ) ? $more : array_merge( $busy, $more );
+		}
 		if ( ! is_wp_error( $busy ) ) {
 			set_transient( $key, $busy, self::CACHE_TTL );
 		}

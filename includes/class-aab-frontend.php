@@ -373,6 +373,11 @@ window.addEventListener( 'message', function ( e ) {
 			'moved'        => __( 'Moved', 'anderson-appointment-booking' ),
 			'movedText'    => __( 'Your appointment has a new time. A confirmation is on its way to your inbox.', 'anderson-appointment-booking' ),
 			'backToBooking' => __( 'Back to your appointment', 'anderson-appointment-booking' ),
+			/* translators: %s: price */
+			'payAndBook'   => __( 'Pay %s and book', 'anderson-appointment-booking' ),
+			/* translators: %s: price */
+			'payNote'      => __( 'You’ll pay %s on Stripe’s secure checkout. Your time is held for 30 minutes while you pay.', 'anderson-appointment-booking' ),
+			'redirecting'  => __( 'Taking you to secure payment…', 'anderson-appointment-booking' ),
 		);
 	}
 
@@ -412,12 +417,52 @@ window.addEventListener( 'message', function ( e ) {
 		$body   = '';
 		$wide   = false;
 
-		if ( $booking && 'cancelled' === $booking['status'] && $valid ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only flag; payment is re-checked with Stripe.
+		$returned = isset( $_GET['aab_paid'] );
+		if ( $valid && 'awaiting_payment' === $booking['status'] && ( $returned || 'abandon' === $view ) ) {
+			// Ask Stripe directly; never trust the return URL alone.
+			$checked = AAB_Payments::check( $id );
+			$booking = AAB_Bookings::get( $id );
+			if ( 'abandon' === $view && 'awaiting_payment' === $booking['status'] && ! $booking['paid_at'] ) {
+				AAB_Payments::release( $id, 'cancelled' );
+				$booking = AAB_Bookings::get( $id );
+			}
+		}
+		$page = (string) get_post_meta( $id, '_aab_page', true );
+		$page = '' !== $page ? $page : home_url( '/' );
+
+		if ( $valid && 'awaiting_payment' === $booking['status'] ) {
+			if ( $booking['paid_at'] ) {
+				$title = __( 'Payment received', 'anderson-appointment-booking' );
+				$body  = self::summary_html( $booking ) . '<p>' . esc_html__( 'Thanks, your payment went through. We’re adding the appointment to the calendar and will email your confirmation shortly.', 'anderson-appointment-booking' ) . '</p>';
+			} elseif ( $returned ) {
+				$title = __( 'Payment processing', 'anderson-appointment-booking' );
+				$body  = self::summary_html( $booking ) . '<p>' . esc_html__( 'Your payment is still being processed. You’ll get a confirmation email as soon as it clears; there’s nothing else you need to do.', 'anderson-appointment-booking' ) . '</p>';
+			} elseif ( $booking['hold_until'] > time() && '' !== $booking['checkout'] ) {
+				$title = __( 'Waiting for payment', 'anderson-appointment-booking' );
+				$body  = self::summary_html( $booking )
+					/* translators: %s: time the hold ends */
+					. '<p>' . esc_html( sprintf( __( 'This time is held for you until %s. Complete payment to confirm it.', 'anderson-appointment-booking' ), wp_date( get_option( 'time_format' ), $booking['hold_until'] ) ) ) . '</p>'
+					. '<div class="aab-manage__actions"><a class="aab-cancel__button aab-manage__primary' . $themed . '" href="' . esc_url( $booking['checkout'] ) . '">'
+					/* translators: %s: price */
+					. esc_html( sprintf( __( 'Pay %s', 'anderson-appointment-booking' ), AAB_Stripe::format( $booking['amount'], $booking['currency'] ) ) ) . '</a>'
+					. '<a class="aab-manage__secondary" href="' . esc_url( add_query_arg( 'aab_do', 'abandon', $base ) ) . '">' . esc_html__( 'Release this time', 'anderson-appointment-booking' ) . '</a></div>';
+			} else {
+				$title = __( 'Reservation expired', 'anderson-appointment-booking' );
+				$body  = '<p>' . esc_html__( 'The time wasn’t paid for in time, so it was released. Nothing was charged.', 'anderson-appointment-booking' ) . '</p><p><a class="aab-cancel__home" href="' . esc_url( $page ) . '">' . esc_html__( 'Pick a time again', 'anderson-appointment-booking' ) . '</a></p>';
+			}
+		} elseif ( $valid && in_array( $booking['status'], array( 'expired', 'cancelled' ), true ) && ! $booking['paid_at'] && ( 'abandon' === $view || 'expired' === $booking['status'] ) ) {
+			$title = 'abandon' === $view ? __( 'Payment cancelled', 'anderson-appointment-booking' ) : __( 'Reservation expired', 'anderson-appointment-booking' );
+			$body  = '<p>' . esc_html__( 'Nothing was charged and the time has been released.', 'anderson-appointment-booking' ) . '</p><p><a class="aab-cancel__home" href="' . esc_url( $page ) . '">' . esc_html__( 'Pick a time again', 'anderson-appointment-booking' ) . '</a></p>';
+		} elseif ( $booking && 'cancelled' === $booking['status'] && $valid ) {
 			$body = '<p>' . esc_html__( 'This appointment is cancelled.', 'anderson-appointment-booking' ) . '</p>';
 		} elseif ( ! $valid ) {
 			// Cancelled bookings drop their token, so an old link lands here too.
 			$body = '<p>' . esc_html__( 'This link is no longer valid. If you cancelled, nothing else is needed. Otherwise reply to your confirmation email and we’ll sort it out.', 'anderson-appointment-booking' ) . '</p>';
 		} else {
+			if ( $returned ) {
+				$title = __( 'You’re booked', 'anderson-appointment-booking' );
+			}
 			$can = AAB_Bookings::can_change( $booking );
 			if ( is_wp_error( $can ) ) {
 				$body = self::summary_html( $booking ) . '<p>' . esc_html( $can->get_error_message() ) . '</p>';
@@ -432,8 +477,16 @@ window.addEventListener( 'message', function ( e ) {
 						. '<p><a class="aab-cancel__home" href="' . esc_url( home_url( '/' ) ) . '">' . esc_html__( 'Back to the site', 'anderson-appointment-booking' ) . '</a></p>';
 				}
 			} elseif ( 'cancel' === $view ) {
-				$title = __( 'Cancel appointment', 'anderson-appointment-booking' );
-				$body  = self::summary_html( $booking )
+				$title  = __( 'Cancel appointment', 'anderson-appointment-booking' );
+				$refund = '';
+				if ( $booking['paid_at'] && ! $booking['refunded'] ) {
+					$refund = AAB_Payments::visitor_gets_refund( $booking )
+						/* translators: %s: amount */
+						? '<p>' . esc_html( sprintf( __( 'Your payment of %s will be refunded.', 'anderson-appointment-booking' ), AAB_Stripe::format( $booking['amount'], $booking['currency'] ) ) ) . '</p>'
+						/* translators: %d: hours */
+						: '<p>' . esc_html( sprintf( _n( 'Cancellations within %d hour of the appointment aren’t refunded.', 'Cancellations within %d hours of the appointment aren’t refunded.', (int) AAB_Settings::get( 'refund_cutoff' ), 'anderson-appointment-booking' ), (int) AAB_Settings::get( 'refund_cutoff' ) ) ) . '</p>';
+				}
+				$body = self::summary_html( $booking ) . $refund
 					. '<form method="post" action="' . esc_url( add_query_arg( 'aab_do', 'cancel', $base ) ) . '"><input type="hidden" name="aab_confirm_cancel" value="1">'
 					. '<button type="submit" class="aab-cancel__button' . $themed . '">' . esc_html__( 'Yes, cancel it', 'anderson-appointment-booking' ) . '</button></form>'
 					. '<p class="aab-cancel__keep"><a href="' . esc_url( $base ) . '">' . esc_html__( 'Keep it', 'anderson-appointment-booking' ) . '</a></p>';
@@ -459,7 +512,11 @@ window.addEventListener( 'message', function ( e ) {
 					. '<p class="aab-cancel__keep"><a href="' . esc_url( $base ) . '">' . esc_html__( 'Keep the current time', 'anderson-appointment-booking' ) . '</a></p>';
 			} else {
 				$limit = (int) AAB_Settings::get( 'max_reschedules' );
-				$body  = self::summary_html( $booking ) . '<div class="aab-manage__actions">';
+				$body  = self::summary_html( $booking );
+				if ( $returned ) {
+					$body .= '<p>' . esc_html__( 'Payment received. A confirmation is on its way to your inbox.', 'anderson-appointment-booking' ) . '</p>';
+				}
+				$body .= '<div class="aab-manage__actions">';
 				if ( ! $limit || $booking['reschedules'] < $limit ) {
 					$body .= '<a class="aab-cancel__button aab-manage__primary' . $themed . '" href="' . esc_url( add_query_arg( 'aab_do', 'reschedule', $base ) ) . '">' . esc_html__( 'Reschedule', 'anderson-appointment-booking' ) . '</a>';
 				}
@@ -515,6 +572,16 @@ window.addEventListener( 'message', function ( e ) {
 		$rows[ __( 'When', 'anderson-appointment-booking' ) ] = $when . ' (' . wp_timezone_string() . ')';
 		if ( '' !== $booking['location'] ) {
 			$rows[ __( 'Where', 'anderson-appointment-booking' ) ] = $booking['location'];
+		}
+		if ( $booking['amount'] ) {
+			$price = AAB_Stripe::format( $booking['amount'], $booking['currency'] );
+			$rows[ __( 'Price', 'anderson-appointment-booking' ) ] = $booking['refunded']
+				/* translators: %s: amount */
+				? sprintf( __( '%s (refunded)', 'anderson-appointment-booking' ), $price )
+				: ( $booking['paid_at']
+					/* translators: %s: amount */
+					? sprintf( __( '%s (paid)', 'anderson-appointment-booking' ), $price )
+					: $price );
 		}
 		$html = '<dl class="aab-manage__details">';
 		foreach ( $rows as $label => $value ) {

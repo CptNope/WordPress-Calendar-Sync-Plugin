@@ -27,6 +27,9 @@ final class AAB_Admin {
 		add_action( 'admin_post_aab_disconnect', array( __CLASS__, 'disconnect' ) );
 		add_action( 'admin_post_aab_cancel_booking', array( __CLASS__, 'cancel_booking' ) );
 		add_action( 'admin_post_aab_export', array( __CLASS__, 'export' ) );
+		add_action( 'admin_post_aab_ms_connect', array( __CLASS__, 'ms_connect' ) );
+		add_action( 'admin_post_aab_ms_oauth', array( __CLASS__, 'ms_oauth' ) );
+		add_action( 'admin_post_aab_ms_disconnect', array( __CLASS__, 'ms_disconnect' ) );
 		add_action( 'admin_post_aab_clear_log', array( __CLASS__, 'clear_log' ) );
 		add_action( 'admin_post_aab_run_now', array( __CLASS__, 'run_now' ) );
 		add_action( 'manage_posts_extra_tablenav', array( __CLASS__, 'export_button' ) );
@@ -128,6 +131,15 @@ final class AAB_Admin {
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'The appointment could not be removed from Google Calendar, so it was not cancelled. Check the Google connection and try again.', 'anderson-appointment-booking' ) . '</p></div>';
 		}
 
+		if ( get_option( AAB_Microsoft::ERROR_OPTION ) ) {
+			printf(
+				'<div class="notice notice-error"><p><strong>%1$s</strong> %2$s <a href="%3$s">%4$s</a></p></div>',
+				esc_html__( 'Appointment booking is offline.', 'anderson-appointment-booking' ),
+				esc_html__( 'Outlook calendar access expired, and availability can’t be checked without it.', 'anderson-appointment-booking' ),
+				esc_url( self::page_url() . '#aab-outlook' ),
+				esc_html__( 'Reconnect Outlook', 'anderson-appointment-booking' )
+			);
+		}
 		$error = get_option( AAB_Google::ERROR_OPTION );
 		if ( ! $error ) {
 			return;
@@ -281,6 +293,29 @@ final class AAB_Admin {
 			$color                 = sanitize_hex_color( $in['style_bg_color'] );
 			$new['style_bg_color'] = $color ? $color : $cur['style_bg_color'];
 		}
+		if ( ! empty( $in['stripe_clear'] ) ) {
+			$new['stripe_secret']         = '';
+			$new['stripe_webhook_secret'] = '';
+		} else {
+			foreach ( array( 'stripe_secret', 'stripe_webhook_secret' ) as $key ) {
+				if ( ! empty( $in[ $key ] ) ) {
+					$new[ $key ] = AAB_Crypto::encrypt( trim( sanitize_text_field( $in[ $key ] ) ) );
+				}
+			}
+		}
+		if ( isset( $in['currency'] ) && preg_match( '/^[A-Za-z]{3}$/', trim( $in['currency'] ) ) ) {
+			$new['currency'] = strtolower( trim( $in['currency'] ) );
+		}
+		$new['refund_cutoff'] = $int( 'refund_cutoff', 0, 720 );
+		if ( isset( $in['ms_client_id'] ) ) {
+			$new['ms_client_id'] = sanitize_text_field( $in['ms_client_id'] );
+		}
+		if ( ! empty( $in['ms_client_secret'] ) ) {
+			$new['ms_client_secret'] = AAB_Crypto::encrypt( sanitize_text_field( $in['ms_client_secret'] ) );
+		}
+		if ( isset( $in['ms_calendars_present'] ) ) {
+			$new['ms_calendars'] = isset( $in['ms_calendars'] ) && is_array( $in['ms_calendars'] ) ? array_values( array_map( 'sanitize_text_field', $in['ms_calendars'] ) ) : array();
+		}
 		if ( isset( $in['custom_css'] ) && current_user_can( 'unfiltered_html' ) ) {
 			$new['custom_css'] = trim( str_ireplace( '</style', '', wp_strip_all_tags( $in['custom_css'] ) ) );
 		}
@@ -413,7 +448,7 @@ final class AAB_Admin {
 			return preg_match( '/^[=+\-@\t\r]/', $value ) ? "'" . $value : $value;
 		};
 		fwrite( $out, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- UTF-8 BOM for Excel.
-		fputcsv( $out, array( 'Start', 'End', 'Timezone', 'Type', 'Name', 'Email', 'Phone', 'Answers', 'Notes', 'Status', 'Booked', 'Google Calendar event' ), ',', '"', '' );
+		fputcsv( $out, array( 'Start', 'End', 'Timezone', 'Type', 'Name', 'Email', 'Phone', 'Answers', 'Notes', 'Status', 'Amount', 'Currency', 'Payment', 'Booked', 'Google Calendar event' ), ',', '"', '' );
 		foreach ( $ids as $id ) {
 			$b = AAB_Bookings::get( $id );
 			if ( ! $b ) {
@@ -434,6 +469,9 @@ final class AAB_Admin {
 						implode( "\n", AAB_Bookings::answer_lines( $b['answers'] ) ),
 						$b['notes'],
 						$b['status'],
+						$b['amount'] ? AAB_Stripe::from_minor( $b['amount'], $b['currency'] ) : '',
+						$b['amount'] ? strtoupper( $b['currency'] ) : '',
+						$b['amount'] ? ( $b['refunded'] ? 'refunded' : ( $b['paid_at'] ? 'paid' : 'unpaid' ) ) : '',
 						get_post_time( 'Y-m-d H:i', false, $id ),
 						$b['event_link'],
 					)
@@ -445,6 +483,64 @@ final class AAB_Admin {
 		}
 		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		exit;
+	}
+
+	/**
+	 * Start Microsoft sign-in.
+	 */
+	public static function ms_connect() {
+		self::guard( 'aab_ms_connect' );
+		if ( ! AAB_Microsoft::has_credentials() ) {
+			self::back( 'error', __( 'Add your Microsoft application (client) ID and client secret first.', 'anderson-appointment-booking' ) );
+		}
+		$state = wp_generate_password( 32, false );
+		set_transient( 'aab_ms_state_' . get_current_user_id(), $state, 15 * MINUTE_IN_SECONDS );
+		wp_redirect( AAB_Microsoft::auth_url( $state ) ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- Microsoft sign-in.
+		exit;
+	}
+
+	/**
+	 * Microsoft sign-in redirect target.
+	 */
+	public static function ms_oauth() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to do that.', 'anderson-appointment-booking' ), 403 );
+		}
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- OAuth state parameter instead of a nonce.
+		$key      = 'aab_ms_state_' . get_current_user_id();
+		$expected = (string) get_transient( $key );
+		delete_transient( $key );
+		$state = isset( $_GET['state'] ) ? sanitize_text_field( wp_unslash( $_GET['state'] ) ) : '';
+		if ( '' === $expected || ! hash_equals( $expected, $state ) ) {
+			self::back( 'error', __( 'The Outlook connection request expired or did not match. Click Connect Outlook again.', 'anderson-appointment-booking' ) );
+		}
+		if ( isset( $_GET['error'] ) ) {
+			$desc = isset( $_GET['error_description'] ) ? sanitize_text_field( wp_unslash( $_GET['error_description'] ) ) : '';
+			/* translators: %s: error from Microsoft */
+			self::back( 'error', sprintf( __( 'Outlook was not connected: %s', 'anderson-appointment-booking' ), '' !== $desc ? strtok( $desc, "\r\n" ) : __( 'access was not granted.', 'anderson-appointment-booking' ) ) );
+		}
+		$code = isset( $_GET['code'] ) ? sanitize_text_field( wp_unslash( $_GET['code'] ) ) : '';
+		// phpcs:enable
+		$result = '' !== $code ? AAB_Microsoft::exchange_code( $code ) : new WP_Error( 'aab_ms_no_code', __( 'Microsoft did not send an authorization code.', 'anderson-appointment-booking' ) );
+		if ( is_wp_error( $result ) ) {
+			/* translators: %s: error */
+			self::back( 'error', sprintf( __( 'Outlook could not be connected: %s', 'anderson-appointment-booking' ), $result->get_error_message() ) );
+		}
+		AAB_Availability::bust_cache();
+		self::back( 'success', __( 'Outlook connected. Choose which of its calendars should block times, then save.', 'anderson-appointment-booking' ) );
+	}
+
+	/**
+	 * Disconnect Microsoft.
+	 */
+	public static function ms_disconnect() {
+		self::guard( 'aab_ms_disconnect' );
+		AAB_Microsoft::disconnect();
+		$s                 = AAB_Settings::all();
+		$s['ms_calendars'] = array();
+		AAB_Settings::save( $s );
+		AAB_Availability::bust_cache();
+		self::back( 'success', __( 'Outlook disconnected. Its calendars no longer block times.', 'anderson-appointment-booking' ) );
 	}
 
 	/**
@@ -487,6 +583,7 @@ final class AAB_Admin {
 			'title'       => __( 'Booking', 'anderson-appointment-booking' ),
 			'aab_when'    => __( 'When', 'anderson-appointment-booking' ),
 			'aab_type'    => __( 'Type', 'anderson-appointment-booking' ),
+			'aab_paid'    => __( 'Payment', 'anderson-appointment-booking' ),
 			'aab_email'   => __( 'Email', 'anderson-appointment-booking' ),
 			'aab_status'  => __( 'Status', 'anderson-appointment-booking' ),
 			'aab_links'   => __( 'Links', 'anderson-appointment-booking' ),
@@ -508,6 +605,21 @@ final class AAB_Admin {
 			case 'aab_type':
 				echo esc_html( $b['type_name'] );
 				break;
+			case 'aab_paid':
+				if ( ! $b['amount'] ) {
+					echo '<span aria-hidden="true">—</span><span class="screen-reader-text">' . esc_html__( 'Free', 'anderson-appointment-booking' ) . '</span>';
+				} elseif ( $b['refunded'] ) {
+					/* translators: %s: amount */
+					echo esc_html( sprintf( __( '%s refunded', 'anderson-appointment-booking' ), AAB_Stripe::format( $b['amount'], $b['currency'] ) ) );
+				} elseif ( $b['refund_error'] ) {
+					echo '<span class="aab-status--error">' . esc_html__( 'Refund failed: refund in Stripe', 'anderson-appointment-booking' ) . '</span>';
+				} elseif ( $b['paid_at'] ) {
+					/* translators: %s: amount */
+					echo esc_html( sprintf( __( '%s paid', 'anderson-appointment-booking' ), AAB_Stripe::format( $b['amount'], $b['currency'] ) ) );
+				} else {
+					echo esc_html__( 'Not paid', 'anderson-appointment-booking' );
+				}
+				break;
 			case 'aab_when':
 				echo esc_html( AAB_Bookings::format_time( $b['start'] ) );
 				break;
@@ -519,6 +631,8 @@ final class AAB_Admin {
 					'confirmed' => __( 'Confirmed', 'anderson-appointment-booking' ),
 					'cancelled' => __( 'Cancelled', 'anderson-appointment-booking' ),
 					'pending'   => __( 'Not confirmed', 'anderson-appointment-booking' ),
+					'awaiting_payment' => $b['paid_at'] ? __( 'Paid, adding to calendar', 'anderson-appointment-booking' ) : __( 'Awaiting payment', 'anderson-appointment-booking' ),
+					'expired'   => __( 'Expired (not paid)', 'anderson-appointment-booking' ),
 				);
 				if ( 'cancelled' === $b['status'] && 'calendar' === get_post_meta( $post_id, '_aab_cancelled_by', true ) ) {
 					$labels['cancelled'] = __( 'Deleted in Google Calendar', 'anderson-appointment-booking' );

@@ -48,10 +48,14 @@ Setup and usability, calendar view, buffers and limits, recurring appointments, 
 - Visitor self-service rescheduling.
 - Custom booking questions.
 
-**Missing, planned**
+**Closed in 1.4.0**
 
-- Payments (Stripe Checkout) for paid sessions, free.
-- Microsoft 365 / Outlook and iCloud (CalDAV) calendars.
+- Payments (Stripe Checkout) for paid sessions, free, with automatic refunds.
+- Microsoft 365 / Outlook conflict calendars.
+
+**Still planned**
+
+- iCloud (CalDAV) calendars.
 
 ## Positioning
 

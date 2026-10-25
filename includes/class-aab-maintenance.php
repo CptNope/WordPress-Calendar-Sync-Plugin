@@ -67,6 +67,9 @@ final class AAB_Maintenance {
 			$stats = array_merge( $stats, self::sync() );
 			$stats['reminded'] = self::reminders();
 		}
+		$payments           = AAB_Payments::sweep();
+		$stats['paid']      = $payments['confirmed'];
+		$stats['released']  = $payments['expired'];
 		$stats['deleted'] = self::retention();
 		update_option( self::LAST_RUN, time(), false );
 		return $stats;
@@ -250,6 +253,10 @@ final class AAB_Maintenance {
 			'label' => __( 'Appointment booking: Google Calendar connection', 'anderson-appointment-booking' ),
 			'test'  => array( __CLASS__, 'test_google' ),
 		);
+		$tests['direct']['aab_outlook']  = array(
+			'label' => __( 'Appointment booking: Outlook calendars', 'anderson-appointment-booking' ),
+			'test'  => array( __CLASS__, 'test_outlook' ),
+		);
 		$tests['direct']['aab_cron']     = array(
 			'label' => __( 'Appointment booking: background tasks', 'anderson-appointment-booking' ),
 			'test'  => array( __CLASS__, 'test_cron' ),
@@ -307,6 +314,21 @@ final class AAB_Maintenance {
 			return self::result( 'aab_google', 'recommended', __( 'Google Calendar is not connected, so visitors can’t book', 'anderson-appointment-booking' ), __( 'Connect Google Calendar to turn on online booking.', 'anderson-appointment-booking' ), self::settings_link() );
 		}
 		return self::result( 'aab_google', 'good', __( 'Google Calendar is connected', 'anderson-appointment-booking' ), __( 'Availability and new bookings are going through Google Calendar.', 'anderson-appointment-booking' ) );
+	}
+
+	/**
+	 * Outlook connection health (only reported when Outlook is in use).
+	 *
+	 * @return array
+	 */
+	public static function test_outlook() {
+		if ( get_option( AAB_Microsoft::ERROR_OPTION ) ) {
+			return self::result( 'aab_outlook', 'critical', __( 'Online booking is offline: Outlook calendar access expired', 'anderson-appointment-booking' ), __( 'Your Outlook calendars are set to block times but can’t be read, so no times are offered. Reconnect Outlook, or disconnect it if you no longer use it.', 'anderson-appointment-booking' ), self::settings_link() );
+		}
+		if ( AAB_Microsoft::active() ) {
+			return self::result( 'aab_outlook', 'good', __( 'Outlook calendars are connected', 'anderson-appointment-booking' ), __( 'Busy times in your selected Outlook calendars block bookings.', 'anderson-appointment-booking' ) );
+		}
+		return self::result( 'aab_outlook', 'good', __( 'Outlook calendars are not in use', 'anderson-appointment-booking' ), __( 'Only Google Calendar is checked for busy times.', 'anderson-appointment-booking' ) );
 	}
 
 	/**

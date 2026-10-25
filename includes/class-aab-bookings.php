@@ -98,7 +98,34 @@ final class AAB_Bookings {
 			// Bookings made before 1.3 have no stored location: fall back to the global one.
 			'location'    => metadata_exists( 'post', $post->ID, '_aab_location' ) ? (string) $m( 'location' ) : trim( (string) AAB_Settings::get( 'location' ) ),
 			'reschedules' => (int) $m( 'reschedules' ),
+			'amount'      => (int) $m( 'amount' ),
+			'currency'    => (string) $m( 'currency' ),
+			'paid_at'     => (int) $m( 'paid_at' ),
+			'payment'     => (string) $m( 'payment_intent' ),
+			'refunded'    => (int) $m( 'refunded_at' ),
+			'refund_error' => (string) $m( 'refund_error' ),
+			'hold_until'  => (int) $m( 'hold_until' ),
+			'session'     => (string) $m( 'session_id' ),
+			'checkout'    => (string) $m( 'checkout_url' ),
 		);
+	}
+
+	/**
+	 * Does this booking hold its slot right now? Confirmed bookings always do; unpaid ones
+	 * only while their payment window is open (or once paid, while being confirmed).
+	 *
+	 * @param int $id Booking ID.
+	 * @return bool
+	 */
+	public static function holds_slot( $id ) {
+		$status = (string) get_post_meta( $id, '_aab_status', true );
+		if ( 'confirmed' === $status ) {
+			return true;
+		}
+		if ( 'awaiting_payment' === $status ) {
+			return (int) get_post_meta( $id, '_aab_paid_at', true ) > 0 || (int) get_post_meta( $id, '_aab_hold_until', true ) > time();
+		}
+		return false;
 	}
 
 	/**
@@ -168,10 +195,48 @@ final class AAB_Bookings {
 			if ( is_wp_error( $check ) ) {
 				return $check;
 			}
+			if ( AAB_Payments::is_paid( $type ) ) {
+				return AAB_Payments::start_checkout( $start, $visitor, $type );
+			}
 			return self::insert( $start, $visitor, $type );
 		} finally {
 			self::release_lock( $start );
 		}
+	}
+
+	/**
+	 * Take a named lock (atomic; see acquire_lock()).
+	 *
+	 * @param string $name Lock name.
+	 * @param int    $ttl  Seconds after which a lock is considered abandoned.
+	 * @return bool
+	 */
+	public static function acquire_named( $name, $ttl = 60 ) {
+		global $wpdb;
+		$name = '_aab_lock_' . substr( sanitize_key( $name ), 0, 150 );
+		$now  = time();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		if ( $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", $name, (string) $now ) ) ) {
+			return true;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+		if ( $held && $now - $held < $ttl ) {
+			return false;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return (bool) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", (string) $now, $name, (string) $held ) );
+	}
+
+	/**
+	 * Release a named lock.
+	 *
+	 * @param string $name Lock name.
+	 */
+	public static function release_named( $name ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->delete( $wpdb->options, array( 'option_name' => '_aab_lock_' . substr( sanitize_key( $name ), 0, 150 ) ) );
 	}
 
 	/**
@@ -237,8 +302,9 @@ final class AAB_Bookings {
 						'value' => $email,
 					),
 					array(
-						'key'   => '_aab_status',
-						'value' => 'confirmed',
+						'key'     => '_aab_status',
+						'value'   => array( 'confirmed', 'awaiting_payment' ),
+						'compare' => 'IN',
 					),
 					array(
 						'key'     => '_aab_end',
@@ -249,11 +315,11 @@ final class AAB_Bookings {
 				),
 			)
 		);
-		return count( $ids );
+		return count( array_filter( $ids, array( __CLASS__, 'holds_slot' ) ) );
 	}
 
 	/**
-	 * Store the booking and create the Google event.
+	 * Store the booking and create the Google event (free appointments).
 	 *
 	 * @param int   $start   Start.
 	 * @param array $visitor Visitor details.
@@ -261,128 +327,172 @@ final class AAB_Bookings {
 	 * @return array|WP_Error
 	 */
 	private static function insert( $start, array $visitor, array $type ) {
-		$name     = $visitor['name'];
-		$email    = $visitor['email'];
-		$notes    = $visitor['notes'];
-		$phone    = $visitor['phone'];
-		$answers  = $visitor['answers'];
-		$location = AAB_Types::location( $type );
-		$end      = $start + AAB_Availability::duration_seconds( $type );
-		$calendar = (string) AAB_Settings::get( 'booking_calendar' );
-		$token    = wp_generate_password( 32, false );
+		$post_id = self::store( $start, $visitor, $type, 'pending' );
+		if ( is_wp_error( $post_id ) ) {
+			return $post_id;
+		}
+		$booking = self::finalize( $post_id );
+		if ( is_wp_error( $booking ) ) {
+			wp_delete_post( $post_id, true );
+		}
+		return $booking;
+	}
 
+	/**
+	 * Save a booking record (no calendar event yet).
+	 *
+	 * @param int    $start   Start.
+	 * @param array  $visitor Visitor details.
+	 * @param array  $type    Appointment type.
+	 * @param string $status  'pending' or 'awaiting_payment'.
+	 * @param array  $extra   Extra meta.
+	 * @return int|WP_Error Post ID.
+	 */
+	public static function store( $start, array $visitor, array $type, $status, array $extra = array() ) {
+		$token   = wp_generate_password( 32, false );
 		$post_id = wp_insert_post(
 			array(
 				'post_type'   => self::POST_TYPE,
 				'post_status' => 'publish',
 				/* translators: 1: visitor name, 2: date and time */
-				'post_title'  => sprintf( __( '%1$s, %2$s', 'anderson-appointment-booking' ), $name, self::format_time( $start ) ),
-				'meta_input'  => array(
-					'_aab_start'       => $start,
-					'_aab_end'         => $end,
-					'_aab_date'        => wp_date( 'Y-m-d', $start ),
-					'_aab_name'        => $name,
-					'_aab_email'       => $email,
-					'_aab_notes'       => $notes,
-					'_aab_phone'       => $phone,
-					'_aab_type'        => $type['id'],
-					'_aab_type_name'   => $type['name'],
-					'_aab_answers'     => $answers,
-					'_aab_location'    => $location,
-					'_aab_status'      => 'pending',
-					'_aab_calendar_id' => $calendar,
-					'_aab_cancel_hash' => self::hash_token( $token ),
-					// Kept (encrypted) so reminder and change emails can include the cancel link too.
-					'_aab_cancel_enc'  => AAB_Crypto::encrypt( $token ),
+				'post_title'  => sprintf( __( '%1$s, %2$s', 'anderson-appointment-booking' ), $visitor['name'], self::format_time( $start ) ),
+				'meta_input'  => array_merge(
+					array(
+						'_aab_start'       => $start,
+						'_aab_end'         => $start + AAB_Availability::duration_seconds( $type ),
+						'_aab_date'        => wp_date( 'Y-m-d', $start ),
+						'_aab_name'        => $visitor['name'],
+						'_aab_email'       => $visitor['email'],
+						'_aab_notes'       => $visitor['notes'],
+						'_aab_phone'       => $visitor['phone'],
+						'_aab_type'        => $type['id'],
+						'_aab_type_name'   => $type['name'],
+						'_aab_answers'     => $visitor['answers'],
+						'_aab_location'    => AAB_Types::location( $type ),
+						'_aab_meet'        => AAB_Types::wants_meet( $type ) ? 1 : 0,
+						'_aab_status'      => $status,
+						'_aab_calendar_id' => (string) AAB_Settings::get( 'booking_calendar' ),
+						'_aab_cancel_hash' => self::hash_token( $token ),
+						// Kept (encrypted) so later emails can include the manage link too.
+						'_aab_cancel_enc'  => AAB_Crypto::encrypt( $token ),
+					),
+					$extra
 				),
 			),
 			true
 		);
-		if ( is_wp_error( $post_id ) ) {
-			return $post_id;
+		if ( ! is_wp_error( $post_id ) ) {
+			// Fixed up front, so creating the Google event is safe to repeat (a retry gets "already exists").
+			update_post_meta( $post_id, '_aab_event_gid', self::event_id( $post_id ) );
 		}
+		return $post_id;
+	}
 
-		$tz    = wp_timezone_string();
-		$event = array(
-			// A client-chosen ID makes the insert safe to retry: a repeat gets "already exists" instead of a duplicate.
-			'id'                 => self::event_id( $post_id ),
-			'summary'            => self::render_title( $name, $type['name'] ),
-			'description'        => self::event_description( $name, $email, $notes, $phone, $type['name'], $answers ),
-			'start'              => array(
-				'dateTime' => wp_date( 'c', $start ),
-				'timeZone' => self::google_timezone( $tz ),
-			),
-			'end'                => array(
-				'dateTime' => wp_date( 'c', $end ),
-				'timeZone' => self::google_timezone( $tz ),
-			),
-			'reminders'          => array( 'useDefault' => true ),
-			'extendedProperties' => array( 'private' => array( 'aab_booking_id' => (string) $post_id ) ),
-		);
-		if ( '' !== $location ) {
-			$event['location'] = $location;
+	/**
+	 * Create the Google event, mark the booking confirmed and send the emails.
+	 *
+	 * Safe to call more than once (e.g. Stripe webhook and the visitor's return at the same
+	 * moment): a lock serializes callers and a confirmed booking is returned as is.
+	 *
+	 * @param int $post_id Booking ID.
+	 * @return array|WP_Error Booking.
+	 */
+	public static function finalize( $post_id ) {
+		if ( ! self::acquire_named( 'fin_' . $post_id, 120 ) ) {
+			return new WP_Error( 'aab_busy', __( 'This booking is being confirmed. Refresh in a moment.', 'anderson-appointment-booking' ), array( 'status' => 409 ) );
 		}
-		$invite = (bool) AAB_Settings::get( 'invite_guest' );
-		if ( $invite ) {
-			$event['attendees'] = array(
-				array(
-					'email'       => $email,
-					'displayName' => $name,
+		try {
+			$booking = self::get( $post_id );
+			if ( ! $booking ) {
+				return new WP_Error( 'aab_not_found', __( 'Booking not found.', 'anderson-appointment-booking' ) );
+			}
+			if ( 'confirmed' === $booking['status'] ) {
+				return $booking;
+			}
+			$calendar = $booking['calendar_id'];
+			$tz       = self::google_timezone( wp_timezone_string() );
+			$event    = array(
+				'id'                 => (string) get_post_meta( $post_id, '_aab_event_gid', true ),
+				'summary'            => self::render_title( $booking['name'], $booking['type_name'] ),
+				'description'        => self::event_description( $booking['name'], $booking['email'], $booking['notes'], $booking['phone'], $booking['type_name'], $booking['answers'], $booking ),
+				'start'              => array(
+					'dateTime' => wp_date( 'c', $booking['start'] ),
+					'timeZone' => $tz,
 				),
-			);
-		}
-		if ( AAB_Types::wants_meet( $type ) ) {
-			$event['conferenceData'] = array(
-				'createRequest' => array(
-					'requestId'             => 'aab-' . $post_id . '-' . wp_generate_password( 8, false ),
-					'conferenceSolutionKey' => array( 'type' => 'hangoutsMeet' ),
+				'end'                => array(
+					'dateTime' => wp_date( 'c', $booking['end'] ),
+					'timeZone' => $tz,
 				),
+				'reminders'          => array( 'useDefault' => true ),
+				'extendedProperties' => array( 'private' => array( 'aab_booking_id' => (string) $post_id ) ),
 			);
-		}
+			if ( '' !== $booking['location'] ) {
+				$event['location'] = $booking['location'];
+			}
+			$invite = (bool) AAB_Settings::get( 'invite_guest' );
+			if ( $invite ) {
+				$event['attendees'] = array(
+					array(
+						'email'       => $booking['email'],
+						'displayName' => $booking['name'],
+					),
+				);
+			}
+			if ( get_post_meta( $post_id, '_aab_meet', true ) ) {
+				$event['conferenceData'] = array(
+					'createRequest' => array(
+						'requestId'             => 'aab-' . $post_id,
+						'conferenceSolutionKey' => array( 'type' => 'hangoutsMeet' ),
+					),
+				);
+			}
 
-		$created = AAB_Google::insert_event( $calendar, $event, $invite );
-		if ( is_wp_error( $created ) ) {
-			wp_delete_post( $post_id, true );
-			return new WP_Error(
-				'aab_google_failed',
-				__( 'The booking could not be added to the calendar. Try again in a minute.', 'anderson-appointment-booking' ),
-				array(
-					'status' => 502,
-					'detail' => $created->get_error_message(),
-				)
-			);
-		}
+			$created = AAB_Google::insert_event( $calendar, $event, $invite );
+			if ( is_wp_error( $created ) ) {
+				return new WP_Error(
+					'aab_google_failed',
+					__( 'The booking could not be added to the calendar. Try again in a minute.', 'anderson-appointment-booking' ),
+					array(
+						'status' => 502,
+						'detail' => $created->get_error_message(),
+					)
+				);
+			}
 
-		$meet = '';
-		if ( ! empty( $created['hangoutLink'] ) ) {
-			$meet = (string) $created['hangoutLink'];
-		} elseif ( ! empty( $created['conferenceData']['entryPoints'] ) ) {
-			foreach ( $created['conferenceData']['entryPoints'] as $entry ) {
-				if ( isset( $entry['entryPointType'] ) && 'video' === $entry['entryPointType'] ) {
-					$meet = (string) $entry['uri'];
-					break;
+			$meet = '';
+			if ( ! empty( $created['hangoutLink'] ) ) {
+				$meet = (string) $created['hangoutLink'];
+			} elseif ( ! empty( $created['conferenceData']['entryPoints'] ) ) {
+				foreach ( $created['conferenceData']['entryPoints'] as $entry ) {
+					if ( isset( $entry['entryPointType'] ) && 'video' === $entry['entryPointType'] ) {
+						$meet = (string) $entry['uri'];
+						break;
+					}
 				}
 			}
+			update_post_meta( $post_id, '_aab_event_id', sanitize_text_field( $created['id'] ) );
+			update_post_meta( $post_id, '_aab_event_link', esc_url_raw( isset( $created['htmlLink'] ) ? $created['htmlLink'] : '' ) );
+			update_post_meta( $post_id, '_aab_meet_link', esc_url_raw( $meet ) );
+			update_post_meta( $post_id, '_aab_status', 'confirmed' );
+			delete_post_meta( $post_id, '_aab_hold_until' );
+
+			AAB_Availability::bust_cache();
+
+			$booking = self::get( $post_id );
+			self::email_confirmation( $booking );
+			self::email_admin_new( $booking );
+
+			/**
+			 * Fires after a booking is confirmed and added to Google Calendar.
+			 *
+			 * @param array $booking Booking data.
+			 */
+			do_action( 'aab_booking_confirmed', $booking );
+
+			return $booking;
+		} finally {
+			self::release_named( 'fin_' . $post_id );
 		}
-		update_post_meta( $post_id, '_aab_event_id', sanitize_text_field( $created['id'] ) );
-		update_post_meta( $post_id, '_aab_event_link', esc_url_raw( isset( $created['htmlLink'] ) ? $created['htmlLink'] : '' ) );
-		update_post_meta( $post_id, '_aab_meet_link', esc_url_raw( $meet ) );
-		update_post_meta( $post_id, '_aab_status', 'confirmed' );
-
-		AAB_Availability::bust_cache();
-
-		$booking = self::get( $post_id );
-		self::email_confirmation( $booking );
-		self::email_admin_new( $booking );
-
-		/**
-		 * Fires after a booking is confirmed and added to Google Calendar.
-		 *
-		 * @param array $booking Booking data.
-		 */
-		do_action( 'aab_booking_confirmed', $booking );
-
-		return $booking;
 	}
 
 	/**
@@ -491,6 +601,11 @@ final class AAB_Bookings {
 		if ( 'cancelled' === $booking['status'] ) {
 			return true;
 		}
+		if ( 'confirmed' !== $booking['status'] && ! $booking['paid_at'] ) {
+			// Never confirmed (payment abandoned): just let the slot go.
+			AAB_Payments::release( $id, 'cancelled' );
+			return true;
+		}
 		if ( '' !== $booking['event_id'] && 'calendar' !== $by ) {
 			$result = AAB_Google::delete_event( $booking['calendar_id'], $booking['event_id'], (bool) AAB_Settings::get( 'invite_guest' ) );
 			if ( is_wp_error( $result ) ) {
@@ -503,8 +618,10 @@ final class AAB_Bookings {
 		delete_post_meta( $id, '_aab_cancel_enc' );
 		AAB_Availability::bust_cache();
 
+		$refund = AAB_Payments::refund_on_cancel( $booking, $by );
+
 		$booking['status'] = 'cancelled';
-		self::email_cancelled( $booking, $by );
+		self::email_cancelled( $booking, $by, $refund );
 
 		/**
 		 * Fires after a booking is cancelled.
@@ -582,15 +699,16 @@ final class AAB_Bookings {
 						'type'    => 'NUMERIC',
 					),
 					array(
-						'key'   => '_aab_status',
-						'value' => 'confirmed',
+						'key'     => '_aab_status',
+						'value'   => array( 'confirmed', 'awaiting_payment' ),
+						'compare' => 'IN',
 					),
 				),
 			)
 		);
 		$out = array();
 		foreach ( $ids as $id ) {
-			if ( (int) $id === (int) $exclude ) {
+			if ( (int) $id === (int) $exclude || ! self::holds_slot( $id ) ) {
 				continue;
 			}
 			$start = (int) get_post_meta( $id, '_aab_start', true );
@@ -626,15 +744,16 @@ final class AAB_Bookings {
 						'compare' => 'BETWEEN',
 					),
 					array(
-						'key'   => '_aab_status',
-						'value' => 'confirmed',
+						'key'     => '_aab_status',
+						'value'   => array( 'confirmed', 'awaiting_payment' ),
+						'compare' => 'IN',
 					),
 				),
 			)
 		);
 		$counts = array();
 		foreach ( $ids as $id ) {
-			if ( (int) $id === (int) $exclude ) {
+			if ( (int) $id === (int) $exclude || ! self::holds_slot( $id ) ) {
 				continue;
 			}
 			$date            = (string) get_post_meta( $id, '_aab_date', true );
@@ -717,7 +836,7 @@ final class AAB_Bookings {
 	 * @param array  $answers   Answers to booking questions.
 	 * @return string
 	 */
-	private static function event_description( $name, $email, $notes, $phone = '', $type_name = '', array $answers = array() ) {
+	private static function event_description( $name, $email, $notes, $phone = '', $type_name = '', array $answers = array(), array $booking = array() ) {
 		$lines = array();
 		if ( '' !== $type_name ) {
 			$lines[] = $type_name;
@@ -735,6 +854,10 @@ final class AAB_Bookings {
 		if ( '' !== $phone ) {
 			/* translators: %s: visitor phone number */
 			$lines[] = sprintf( __( 'Phone: %s', 'anderson-appointment-booking' ), $phone );
+		}
+		if ( ! empty( $booking['paid_at'] ) ) {
+			/* translators: %s: amount paid */
+			$lines[] = sprintf( __( 'Paid: %s (Stripe)', 'anderson-appointment-booking' ), AAB_Stripe::format( $booking['amount'], $booking['currency'] ) );
 		}
 		foreach ( self::answer_lines( $answers ) as $line ) {
 			$lines[] = $line;
@@ -1043,8 +1166,16 @@ final class AAB_Bookings {
 	 *
 	 * @param array  $booking Booking.
 	 * @param string $by      Who cancelled.
+	 * @param string $refund  'refunded', 'not_refunded', 'failed' or '' (nothing was paid).
 	 */
-	private static function email_cancelled( array $booking, $by ) {
+	private static function email_cancelled( array $booking, $by, $refund = '' ) {
+		$refund_line = '';
+		if ( 'refunded' === $refund ) {
+			/* translators: %s: amount */
+			$refund_line = "\n\n" . sprintf( __( 'Your payment of %s has been refunded. It can take 5–10 business days to appear on your statement.', 'anderson-appointment-booking' ), AAB_Stripe::format( $booking['amount'], $booking['currency'] ) );
+		} elseif ( 'not_refunded' === $refund ) {
+			$refund_line = "\n\n" . __( 'This cancellation was inside the refund window, so the payment was not refunded. Reply to this email if you have questions.', 'anderson-appointment-booking' );
+		}
 		$when = self::format_time( $booking['start'] );
 
 		/* translators: 1: site name, 2: date and time */
@@ -1052,7 +1183,7 @@ final class AAB_Bookings {
 
 		if ( $booking['end'] > time() ) {
 			/* translators: 1: visitor name, 2: date and time */
-			$body = sprintf( __( "Hi %1\$s,\n\nYour appointment on %2\$s has been cancelled.", 'anderson-appointment-booking' ), $booking['name'], $when );
+			$body = sprintf( __( "Hi %1\$s,\n\nYour appointment on %2\$s has been cancelled.", 'anderson-appointment-booking' ), $booking['name'], $when ) . $refund_line;
 			wp_mail( $booking['email'], $subject, $body, self::reply_to_header( self::notify_email() ) );
 		}
 

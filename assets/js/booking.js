@@ -286,6 +286,7 @@
 							h( 'span', { class: 'aab__type-name', text: type.name } ),
 							h( 'span', { class: 'aab__type-len', text: meta[ 0 ] } ),
 						] ),
+						type.priceText ? h( 'span', { class: 'aab__type-price', text: type.priceText } ) : null,
 						meta[ 1 ] ? h( 'span', { class: 'aab__type-where', text: meta[ 1 ] } ) : null,
 						type.description ? h( 'span', { class: 'aab__type-desc', text: type.description } ) : null,
 					] ),
@@ -741,8 +742,13 @@
 		var status = h( 'p', { class: 'aab__message aab__message--error', role: 'alert', hidden: true } );
 		// In "match my theme" mode on block themes the button also takes the theme's button class.
 		var themed = this.root.classList.contains( 'aab--buttons-theme' ) && this.root.classList.contains( 'aab--wp-buttons' );
-		var submit = h( 'button', { type: 'submit', class: 'aab__submit' + ( themed ? ' wp-element-button' : '' ), text: sprintf( t.book, timeText ) } );
+		var paid = !! ( this.type && this.type.price );
+		var label = paid ? sprintf( t.payAndBook, this.type.priceText ) : sprintf( t.book, timeText );
+		var submit = h( 'button', { type: 'submit', class: 'aab__submit' + ( themed ? ' wp-element-button' : '' ), text: label, 'data-label': label } );
 		form.appendChild( status );
+		if ( paid ) {
+			form.appendChild( h( 'p', { class: 'aab__pay-note', text: sprintf( t.payNote, this.type.priceText ) } ) );
+		}
 		form.appendChild( submit );
 
 		form.addEventListener( 'submit', function ( ev ) {
@@ -823,7 +829,7 @@
 
 		var reset = function () {
 			submit.disabled = false;
-			submit.textContent = sprintf( t.book, timeText );
+			submit.textContent = submit.getAttribute( 'data-label' ) || sprintf( t.book, timeText );
 		};
 
 		// The server ignores forms sent within 3 seconds (a bot signal), so wait out any remainder.
@@ -875,6 +881,13 @@
 				} );
 			} )
 			.then( function ( r ) {
+				if ( r.ok && r.body && r.body.checkout ) {
+					// Paid appointment: the time is held; finish on Stripe's hosted checkout.
+					status.hidden = true;
+					form.querySelector( '.aab__submit' ).textContent = t.redirecting;
+					window.location.assign( r.body.checkout );
+					return;
+				}
 				if ( r.ok ) {
 					self.result = r.body;
 					self.view = 'done';

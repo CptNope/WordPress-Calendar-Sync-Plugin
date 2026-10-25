@@ -31,6 +31,16 @@ final class AAB_Rest {
 		self::reschedule_route();
 		register_rest_route(
 			self::NS,
+			'/stripe',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'stripe_webhook' ),
+				// Authenticated by Stripe's signature, checked in the callback.
+				'permission_callback' => '__return_true',
+			)
+		);
+		register_rest_route(
+			self::NS,
 			'/availability',
 			array(
 				'methods'             => WP_REST_Server::READABLE,
@@ -151,7 +161,7 @@ final class AAB_Rest {
 			$type = AAB_Types::first();
 		} else {
 			$type = AAB_Types::get( $id );
-			$type = $type && $type['active'] ? $type : null;
+			$type = $type && $type['active'] && ( ! AAB_Payments::is_paid( $type ) || AAB_Payments::ready() ) ? $type : null;
 		}
 		return $type ? $type : new WP_Error( 'aab_bad_type', __( 'That appointment type isn’t available. Reload the page and pick another.', 'anderson-appointment-booking' ), array( 'status' => 404 ) );
 	}
@@ -169,6 +179,24 @@ final class AAB_Rest {
 			return new WP_Error( 'aab_bad_link', __( 'This link is no longer valid. Reply to your confirmation email and we’ll sort it out.', 'anderson-appointment-booking' ), array( 'status' => 403 ) );
 		}
 		return $booking;
+	}
+
+	/**
+	 * Stripe webhook: confirms paid bookings and releases expired holds.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function stripe_webhook( WP_REST_Request $request ) {
+		$payload = (string) $request->get_body();
+		if ( ! AAB_Stripe::verify_signature( $payload, (string) $request->get_header( 'stripe_signature' ) ) ) {
+			return new WP_Error( 'aab_bad_signature', 'Invalid signature', array( 'status' => 400 ) );
+		}
+		$event = json_decode( $payload, true );
+		if ( ! is_array( $event ) ) {
+			return new WP_Error( 'aab_bad_payload', 'Invalid payload', array( 'status' => 400 ) );
+		}
+		return rest_ensure_response( array( 'result' => AAB_Payments::handle_event( $event ) ) );
 	}
 
 	/**
@@ -361,6 +389,9 @@ final class AAB_Rest {
 			if ( 'aab_slot_taken' === $booking->get_error_code() ) {
 				return $booking;
 			}
+			if ( in_array( $booking->get_error_code(), array( 'aab_payments_failed', 'aab_payments_off' ), true ) ) {
+				return $booking;
+			}
 			if ( 'aab_google_failed' === $booking->get_error_code() ) {
 				return new WP_Error( $booking->get_error_code(), $booking->get_error_message(), array( 'status' => $status ) );
 			}
@@ -368,6 +399,15 @@ final class AAB_Rest {
 		}
 
 		self::rate_limited( 'book', 5, HOUR_IN_SECONDS, true );
+
+		if ( ! empty( $booking['checkout_url'] ) ) {
+			return rest_ensure_response(
+				array(
+					'checkout' => $booking['checkout_url'],
+					'start'    => $booking['start'],
+				)
+			);
+		}
 
 		return rest_ensure_response(
 			array(

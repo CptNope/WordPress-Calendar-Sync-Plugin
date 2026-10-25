@@ -334,6 +334,72 @@ $aab_has_secret = $secret_locked || '' !== AAB_Settings::client_secret();
 			</table>
 		</div>
 
+		<div class="aab-card" id="aab-payments">
+			<h2><?php esc_html_e( 'Payments (Stripe)', 'anderson-appointment-booking' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'Optional. Give an appointment type a price and visitors pay on Stripe’s secure checkout page before the booking is confirmed. Free types are unaffected.', 'anderson-appointment-booking' ); ?></p>
+			<?php if ( AAB_Stripe::enabled() ) : ?>
+				<p class="aab-connection aab-connection--on">
+					<?php echo AAB_Stripe::test_mode() ? esc_html__( 'Stripe connected in test mode: use Stripe’s test cards, no real money moves.', 'anderson-appointment-booking' ) : esc_html__( 'Stripe connected (live).', 'anderson-appointment-booking' ); ?>
+				</p>
+			<?php endif; ?>
+			<details class="aab-steps" <?php echo AAB_Stripe::enabled() ? '' : 'open'; ?>>
+				<summary><?php esc_html_e( 'How to set up Stripe (about 3 minutes)', 'anderson-appointment-booking' ); ?></summary>
+				<ol>
+					<li><?php esc_html_e( 'In the Stripe dashboard, open Developers → API keys and copy the Secret key (start with the test key, sk_test_…).', 'anderson-appointment-booking' ); ?></li>
+					<li>
+						<?php esc_html_e( 'Open Developers → Webhooks, add an endpoint with this URL, and choose the events checkout.session.completed, checkout.session.expired, checkout.session.async_payment_succeeded and checkout.session.async_payment_failed:', 'anderson-appointment-booking' ); ?>
+						<span class="aab-copy">
+							<input type="text" readonly value="<?php echo esc_attr( AAB_Stripe::webhook_url() ); ?>" class="large-text code" id="aab-webhook-url">
+							<button type="button" class="button" data-aab-copy="aab-webhook-url"><?php esc_html_e( 'Copy', 'anderson-appointment-booking' ); ?></button>
+						</span>
+					</li>
+					<li><?php esc_html_e( 'Copy the endpoint’s Signing secret (whsec_…) and paste both below. Without the webhook, bookings are still confirmed when visitors return from paying, or within the hour.', 'anderson-appointment-booking' ); ?></li>
+				</ol>
+			</details>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="aab-stripe-secret"><?php esc_html_e( 'Secret key', 'anderson-appointment-booking' ); ?></label></th>
+					<td>
+						<?php if ( defined( 'AAB_STRIPE_SECRET_KEY' ) ) : ?>
+							<code><?php esc_html_e( 'Set in wp-config.php', 'anderson-appointment-booking' ); ?></code>
+						<?php else : ?>
+							<input type="password" id="aab-stripe-secret" name="aab[stripe_secret]" value="" class="regular-text code" autocomplete="new-password" placeholder="<?php echo '' !== AAB_Stripe::secret() ? esc_attr__( 'Saved. Leave blank to keep it.', 'anderson-appointment-booking' ) : 'sk_test_…'; ?>">
+							<?php if ( '' !== AAB_Stripe::secret() ) : ?>
+								<label class="aab-inline-check"><input type="checkbox" name="aab[stripe_clear]" value="1"> <?php esc_html_e( 'Remove saved keys', 'anderson-appointment-booking' ); ?></label>
+							<?php endif; ?>
+						<?php endif; ?>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="aab-stripe-whsec"><?php esc_html_e( 'Webhook signing secret', 'anderson-appointment-booking' ); ?></label></th>
+					<td>
+						<?php if ( defined( 'AAB_STRIPE_WEBHOOK_SECRET' ) ) : ?>
+							<code><?php esc_html_e( 'Set in wp-config.php', 'anderson-appointment-booking' ); ?></code>
+						<?php else : ?>
+							<input type="password" id="aab-stripe-whsec" name="aab[stripe_webhook_secret]" value="" class="regular-text code" autocomplete="new-password" placeholder="<?php echo '' !== AAB_Stripe::webhook_secret() ? esc_attr__( 'Saved. Leave blank to keep it.', 'anderson-appointment-booking' ) : 'whsec_…'; ?>">
+						<?php endif; ?>
+						<p class="description"><?php esc_html_e( 'Both are stored encrypted. You can instead define AAB_STRIPE_SECRET_KEY and AAB_STRIPE_WEBHOOK_SECRET in wp-config.php.', 'anderson-appointment-booking' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="aab-currency"><?php esc_html_e( 'Currency', 'anderson-appointment-booking' ); ?></label></th>
+					<td>
+						<input type="text" id="aab-currency" name="aab[currency]" value="<?php echo esc_attr( strtoupper( AAB_Payments::currency() ) ); ?>" class="small-text code" maxlength="3" pattern="[A-Za-z]{3}">
+						<p class="description"><?php esc_html_e( 'Three-letter code such as USD, EUR, GBP. Changing it doesn’t convert prices you’ve already set.', 'anderson-appointment-booking' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="aab-refund-cutoff"><?php esc_html_e( 'Refund visitor cancellations until', 'anderson-appointment-booking' ); ?></label></th>
+					<td>
+						<input type="number" min="0" max="720" id="aab-refund-cutoff" name="aab[refund_cutoff]" value="<?php echo esc_attr( $s['refund_cutoff'] ); ?>" class="small-text"> <?php esc_html_e( 'hours before', 'anderson-appointment-booking' ); ?>
+						<p class="description"><?php esc_html_e( 'Visitors who cancel earlier than this get a full refund automatically; later cancellations aren’t refunded. When you cancel (or delete the event in Google Calendar), the visitor is always refunded in full.', 'anderson-appointment-booking' ); ?></p>
+					</td>
+				</tr>
+			</table>
+		</div>
+
+		<?php include AAB_DIR . 'includes/views/microsoft.php'; ?>
+
 		<?php include AAB_DIR . 'includes/views/appearance.php'; ?>
 
 		<div class="aab-card">
@@ -356,6 +422,16 @@ $aab_has_secret = $secret_locked || '' !== AAB_Settings::client_secret();
 		</div>
 
 		<?php submit_button( __( 'Save settings', 'anderson-appointment-booking' ) ); ?>
+	</form>
+
+	<?php // Forms can't nest: these are targeted by buttons inside the settings form via form="…". ?>
+	<form id="aab-ms-connect" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" hidden>
+		<input type="hidden" name="action" value="aab_ms_connect">
+		<?php wp_nonce_field( 'aab_ms_connect', '_wpnonce', true, true ); ?>
+	</form>
+	<form id="aab-ms-disconnect" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" hidden>
+		<input type="hidden" name="action" value="aab_ms_disconnect">
+		<?php wp_nonce_field( 'aab_ms_disconnect', '_wpnonce', true, true ); ?>
 	</form>
 
 	<?php $aab_log = get_option( AAB_Google::LOG_OPTION, array() ); ?>
