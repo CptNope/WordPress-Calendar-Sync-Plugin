@@ -4,7 +4,7 @@ Tags: appointment, booking, google calendar, scheduling, calendar
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.4.0
+Stable tag: 1.4.1
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -106,6 +106,9 @@ Yes. Connect Outlook / Microsoft 365 under Appointments → Settings and choose 
 Yes. Times are loaded through the REST API when the page opens, so cached pages still show current availability.
 
 == Changelog ==
+
+= 1.4.1 =
+* Fix: The connected Google account and the calendar time-zone check no longer fail with "insufficient authentication scopes". They now use the calendar-list permission the plugin already asks for.
 
 = 1.4.0 =
 * New: Paid appointment types with Stripe Checkout. The time is held while the visitor pays, the booking is confirmed only after payment (by webhook, the visitor's return, or the hourly check), and nothing is ever confirmed on the browser's word alone.

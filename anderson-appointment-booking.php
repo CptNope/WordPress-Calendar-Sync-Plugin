@@ -3,7 +3,7 @@
  * Plugin Name:       Anderson Appointment Booking
  * Plugin URI:        https://github.com/CptNope/WordPress-Calendar-Sync-Plugin
  * Description:       Let visitors book appointments with you from your WordPress site. Availability is read live from your Google Calendar and every booking is added to it.
- * Version:           1.4.0
+ * Version:           1.4.1
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Jeremy Anderson
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'AAB_VERSION', '1.4.0' );
+define( 'AAB_VERSION', '1.4.1' );
 define( 'AAB_FILE', __FILE__ );
 define( 'AAB_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AAB_URL', plugin_dir_url( __FILE__ ) );

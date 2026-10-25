@@ -143,7 +143,8 @@ final class AAB_Google {
 		delete_transient( self::CALENDARS_KEY );
 
 		// Record which account was connected (the primary calendar's ID is its email address).
-		$primary = self::request( 'GET', '/calendars/primary' );
+		// calendarList (not /calendars) so the calendarlist.readonly scope is enough.
+		$primary = self::request( 'GET', '/users/me/calendarList/primary' );
 		if ( ! is_wp_error( $primary ) && ! empty( $primary['id'] ) ) {
 			$data          = get_option( self::TOKEN_OPTION, array() );
 			$data['email'] = sanitize_text_field( $primary['id'] );
@@ -410,7 +411,7 @@ final class AAB_Google {
 		if ( is_string( $cached ) ) {
 			return $cached;
 		}
-		$cal = self::request( 'GET', '/calendars/' . rawurlencode( $calendar_id ) );
+		$cal = self::request( 'GET', '/users/me/calendarList/' . rawurlencode( $calendar_id ) );
 		$tz  = ! is_wp_error( $cal ) && ! empty( $cal['timeZone'] ) ? (string) $cal['timeZone'] : '';
 		set_transient( $key, $tz, $tz ? DAY_IN_SECONDS : HOUR_IN_SECONDS );
 		return $tz;
