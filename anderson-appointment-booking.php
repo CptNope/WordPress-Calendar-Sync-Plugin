@@ -3,7 +3,7 @@
  * Plugin Name:       Anderson Appointment Booking
  * Plugin URI:        https://github.com/CptNope/WordPress-Calendar-Sync-Plugin
  * Description:       Let visitors book appointments with you from your WordPress site. Availability is read live from your Google Calendar and every booking is added to it.
- * Version:           1.4.1
+ * Version:           1.4.2
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Jeremy Anderson
@@ -17,7 +17,30 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'AAB_VERSION', '1.4.1' );
+// Another copy is already loaded (e.g. a GitHub download in a differently named folder):
+// stay out of the way instead of crashing on duplicate classes, and say so.
+if ( defined( 'AAB_VERSION' ) ) {
+	$aab_duplicate = __FILE__;
+	add_action(
+		'admin_notices',
+		function () use ( $aab_duplicate ) {
+			if ( ! current_user_can( 'activate_plugins' ) ) {
+				return;
+			}
+			echo '<div class="notice notice-warning"><p>' . esc_html(
+				sprintf(
+					/* translators: 1: running version, 2: plugin folder of the extra copy */
+					__( 'Two copies of Anderson Appointment Booking are active. Version %1$s is running; the copy in “%2$s” is doing nothing. Deactivate the one you don’t want. To remove an old copy, delete its folder rather than using Delete here, which would also disconnect Google Calendar in older versions.', 'anderson-appointment-booking' ),
+					AAB_VERSION,
+					basename( dirname( $aab_duplicate ) )
+				)
+			) . '</p></div>';
+		}
+	);
+	return;
+}
+
+define( 'AAB_VERSION', '1.4.2' );
 define( 'AAB_FILE', __FILE__ );
 define( 'AAB_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AAB_URL', plugin_dir_url( __FILE__ ) );

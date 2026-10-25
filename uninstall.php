@@ -7,6 +7,14 @@
 
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
+// Another copy of this plugin (e.g. a GitHub download in a differently named folder)
+// is still active and uses the same settings and Google grant: leave everything alone.
+foreach ( (array) get_option( 'active_plugins', array() ) as $aab_active ) {
+	if ( 'anderson-appointment-booking.php' === basename( (string) $aab_active ) && WP_UNINSTALL_PLUGIN !== $aab_active ) {
+		return;
+	}
+}
+
 $aab_settings = get_option( 'aab_settings', array() );
 
 // Revoke the Google grant so no token outlives the plugin.

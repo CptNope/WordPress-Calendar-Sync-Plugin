@@ -4,7 +4,7 @@ Tags: appointment, booking, google calendar, scheduling, calendar
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.4.1
+Stable tag: 1.4.2
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -106,6 +106,10 @@ Yes. Connect Outlook / Microsoft 365 under Appointments → Settings and choose 
 Yes. Times are loaded through the REST API when the page opens, so cached pages still show current availability.
 
 == Changelog ==
+
+= 1.4.2 =
+* Fix: Installing a second copy of the plugin in a differently named folder (for example a GitHub download) no longer causes a fatal error on activation. The extra copy stays idle and a notice explains what to do.
+* Fix: Deleting an extra copy no longer disconnects Google Calendar or removes settings while another copy is still active.
 
 = 1.4.1 =
 * Fix: The connected Google account and the calendar time-zone check no longer fail with "insufficient authentication scopes". They now use the calendar-list permission the plugin already asks for.
