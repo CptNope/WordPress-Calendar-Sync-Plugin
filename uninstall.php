@@ -39,6 +39,7 @@ if ( empty( $aab_settings['delete_data'] ) ) {
 }
 
 delete_option( 'aab_settings' );
+delete_option( 'aab_types' );
 
 $aab_ids = get_posts(
 	array(

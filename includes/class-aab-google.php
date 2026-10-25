@@ -461,10 +461,11 @@ final class AAB_Google {
 	 *
 	 * @param int      $from         Unix start.
 	 * @param int      $to           Unix end.
-	 * @param string[] $calendar_ids Calendar IDs.
+	 * @param string[]   $calendar_ids Calendar IDs.
+	 * @param array|null $skip         Optional {calendar, start, end}: a booking's own event to ignore (rescheduling).
 	 * @return array<int,array{0:int,1:int}>|WP_Error
 	 */
-	public static function busy( $from, $to, array $calendar_ids ) {
+	public static function busy( $from, $to, array $calendar_ids, $skip = null ) {
 		$items = array();
 		foreach ( array_unique( $calendar_ids ) as $id ) {
 			$items[] = array( 'id' => $id );
@@ -488,13 +489,18 @@ final class AAB_Google {
 				/* translators: %s: calendar ID */
 				return new WP_Error( 'aab_freebusy', sprintf( __( 'Could not read availability for calendar %s.', 'anderson-appointment-booking' ), $id ) );
 			}
+			$ranges = array();
 			foreach ( isset( $calendar['busy'] ) ? $calendar['busy'] : array() as $range ) {
 				$start = strtotime( $range['start'] );
 				$end   = strtotime( $range['end'] );
 				if ( $start && $end && $end > $start ) {
-					$busy[] = array( $start, $end );
+					$ranges[] = array( $start, $end );
 				}
 			}
+			if ( $skip && (string) $id === $skip['calendar'] ) {
+				$ranges = AAB_Availability::subtract( $ranges, $skip['start'], $skip['end'] );
+			}
+			$busy = array_merge( $busy, $ranges );
 		}
 		return $busy;
 	}
@@ -521,6 +527,24 @@ final class AAB_Google {
 			}
 		}
 		return $result;
+	}
+
+	/**
+	 * Update part of an event (e.g. its time).
+	 *
+	 * @param string $calendar_id  Calendar ID.
+	 * @param string $event_id     Event ID.
+	 * @param array  $changes      Fields to change.
+	 * @param bool   $send_updates Email guests about the change.
+	 * @return array|WP_Error Updated event.
+	 */
+	public static function patch_event( $calendar_id, $event_id, array $changes, $send_updates ) {
+		return self::request(
+			'PATCH',
+			'/calendars/' . rawurlencode( $calendar_id ) . '/events/' . rawurlencode( $event_id ),
+			$changes,
+			array( 'sendUpdates' => $send_updates ? 'all' : 'none' )
+		);
 	}
 
 	/**

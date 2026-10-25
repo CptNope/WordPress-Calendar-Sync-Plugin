@@ -70,6 +70,8 @@ final class AAB_Settings {
 			'phone_field'          => 'off',
 			'reminder_hours'       => 24,
 			'retention_days'       => 0,
+			'change_cutoff'        => 0,
+			'max_reschedules'      => 0,
 			'event_title'          => 'Appointment with {name}',
 			'location'             => '',
 			'add_meet'             => 1,

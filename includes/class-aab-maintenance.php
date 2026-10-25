@@ -168,7 +168,7 @@ final class AAB_Maintenance {
 				);
 				AAB_Availability::bust_cache();
 				if ( $start !== $b['start'] ) {
-					AAB_Bookings::email_rescheduled( AAB_Bookings::get( $id ), $b['start'] );
+					AAB_Bookings::email_rescheduled( AAB_Bookings::get( $id ), $b['start'], 'calendar' );
 				}
 				++$out['moved'];
 			}

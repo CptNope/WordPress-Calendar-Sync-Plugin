@@ -2,14 +2,14 @@
 # This file is distributed under the MIT.
 msgid ""
 msgstr ""
-"Project-Id-Version: Anderson Appointment Booking 1.2.0\n"
+"Project-Id-Version: Anderson Appointment Booking 1.3.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/anderson-appointment-booking\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-24T19:17:59+00:00\n"
+"POT-Creation-Date: 2026-10-25T03:02:58+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: anderson-appointment-booking\n"
@@ -40,6 +40,334 @@ msgstr ""
 msgid "https://jeremyanderson.tech"
 msgstr ""
 
+#: includes/class-aab-admin-types.php:34
+#: includes/class-aab-admin-types.php:35
+#: includes/class-aab-admin-types.php:231
+#: blocks/booking/index.js:155
+msgid "Appointment types"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:70
+#: includes/class-aab-admin-types.php:467
+#: includes/class-aab-admin-types.php:470
+msgid "Question"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:71
+#: includes/class-aab-admin-types.php:474
+msgid "Answer type"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:72
+#: includes/class-aab-admin-types.php:482
+msgid "Choices (one per line)"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:73
+#: includes/class-aab-admin-types.php:486
+msgid "Required"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:74
+#: includes/class-aab-admin-types.php:488
+msgid "Remove"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:75
+#: includes/class-aab-admin-types.php:284
+#: includes/class-aab-admin-types.php:487
+msgid "Move up"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:76
+#: includes/class-aab-admin-types.php:287
+msgid "Move down"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:77
+#: includes/class-aab-admin.php:111
+msgid "Copied"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:90
+#: includes/class-aab-admin.php:183
+#: includes/class-aab-admin.php:328
+msgid "You do not have permission to do that."
+msgstr ""
+
+#: includes/class-aab-admin-types.php:145
+msgid "Saved, but kept visible: at least one appointment type must be bookable."
+msgstr ""
+
+#. translators: %s: appointment type name
+#: includes/class-aab-admin-types.php:151
+msgid "“%s” saved."
+msgstr ""
+
+#: includes/class-aab-admin-types.php:162
+#: includes/class-aab-admin-types.php:307
+msgid "That appointment type no longer exists."
+msgstr ""
+
+#: includes/class-aab-admin-types.php:165
+msgid "You need at least one appointment type. Edit this one instead."
+msgstr ""
+
+#. translators: %s: appointment type name
+#: includes/class-aab-admin-types.php:174
+msgid "“%s” deleted. Existing bookings of this type are kept and can still be rescheduled."
+msgstr ""
+
+#: includes/class-aab-admin-types.php:222
+msgid "Your usual hours"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:222
+msgid "Own hours"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:232
+#: includes/class-aab-admin-types.php:331
+#: includes/class-aab-admin-types.php:441
+msgid "Add appointment type"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:234
+msgid "Visitors pick one of these first, then a time. Each type can have its own length, hours and questions; buffers, notice, days off and the booking window are shared and set under Settings."
+msgstr ""
+
+#: includes/class-aab-admin-types.php:239
+#: includes/class-aab-admin-types.php:343
+#: includes/class-aab-admin.php:595
+#: includes/class-aab-bookings.php:1154
+msgid "Name"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:240
+#: includes/class-aab-admin-types.php:359
+msgid "Length"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:241
+#: includes/class-aab-admin-types.php:379
+msgid "Hours"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:242
+#: includes/class-aab-admin-types.php:424
+msgid "Questions"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:243
+msgid "Shortcode for this type only"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:244
+msgid "Order"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:261
+msgid "Hidden"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:267
+msgid "Edit"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:269
+msgid "Delete this appointment type? Existing bookings are kept."
+msgstr ""
+
+#: includes/class-aab-admin-types.php:269
+msgid "Delete"
+msgstr ""
+
+#. translators: %d: minutes
+#. translators: %d: appointment length in minutes
+#: includes/class-aab-admin-types.php:276
+#: includes/class-aab-frontend.php:342
+msgid "%d min"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:294
+msgid "The order here is the order visitors see. [anderson_booking] without a type shows all visible types."
+msgstr ""
+
+#: includes/class-aab-admin-types.php:319
+#: includes/class-aab-admin.php:628
+msgid "Monday"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:320
+#: includes/class-aab-admin.php:629
+msgid "Tuesday"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:321
+#: includes/class-aab-admin.php:630
+msgid "Wednesday"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:322
+#: includes/class-aab-admin.php:631
+msgid "Thursday"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:323
+#: includes/class-aab-admin.php:632
+msgid "Friday"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:324
+#: includes/class-aab-admin.php:633
+msgid "Saturday"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:325
+#: includes/class-aab-admin.php:634
+msgid "Sunday"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:332
+#: includes/class-aab-frontend.php:363
+msgid "All appointment types"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:340
+msgid "Basics"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:345
+msgid "e.g. 15-minute intro call"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:348
+msgid "Shortcode for this type only:"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:355
+msgid "Description"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:356
+msgid "Optional: shown to visitors under the name."
+msgstr ""
+
+#: includes/class-aab-admin-types.php:360
+#: includes/class-aab-admin-types.php:365
+#: includes/views/settings.php:248
+#: includes/views/settings.php:249
+msgid "minutes"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:363
+msgid "Start times every"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:366
+msgid "E.g. 30 offers 9:00, 9:30, 10:00…"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:370
+msgid "Visible"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:371
+msgid "Visitors can book this type"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:377
+#: includes/class-aab-admin.php:488
+#: includes/class-aab-admin.php:594
+#: includes/class-aab-frontend.php:515
+#: includes/views/settings.php:367
+msgid "When"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:380
+msgid "Use my usual hours (from Settings)"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:381
+msgid "Use different hours for this type"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:388
+#: includes/views/settings.php:240
+msgid "Closed"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:393
+msgid "24-hour ranges, breaks separated by commas, e.g. 09:00-12:00, 13:00-17:00. Leave a day empty to close it for this type. Your other calendar commitments still block times as usual."
+msgstr ""
+
+#: includes/class-aab-admin-types.php:397
+#: includes/class-aab-frontend.php:517
+msgid "Where"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:400
+#: includes/views/settings.php:291
+msgid "Location"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:402
+#: includes/views/settings.php:292
+msgid "Optional: an address or phone number"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:404
+msgid "Leave empty to use the location from Settings."
+msgstr ""
+
+#: includes/class-aab-admin-types.php:409
+#: includes/class-aab-admin.php:539
+#: includes/class-aab-frontend.php:364
+#: includes/class-aab-frontend.php:524
+#: includes/views/settings.php:295
+msgid "Video call"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:413
+msgid "Default (add a Google Meet link)"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:413
+msgid "Default (no video link)"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:415
+msgid "Add a Google Meet link"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:416
+msgid "No video link (in person or phone)"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:425
+msgid "Asked after name and email. Answers go into the calendar event, your notification email and the booking record."
+msgstr ""
+
+#: includes/class-aab-admin-types.php:432
+msgid "Add question"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:435
+msgid "Notes box"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:436
+msgid "Also show “Anything I should know?” (optional)"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:441
+msgid "Save appointment type"
+msgstr ""
+
+#: includes/class-aab-admin-types.php:471
+msgid "e.g. What would you like to talk about?"
+msgstr ""
+
 #: includes/class-aab-admin.php:46
 #: includes/class-aab-admin.php:47
 #: includes/class-aab-maintenance.php:279
@@ -53,10 +381,6 @@ msgstr ""
 #: includes/class-aab-admin.php:54
 #: includes/class-aab-admin.php:64
 msgid "Settings"
-msgstr ""
-
-#: includes/class-aab-admin.php:111
-msgid "Copied"
 msgstr ""
 
 #: includes/class-aab-admin.php:126
@@ -83,189 +407,155 @@ msgstr ""
 msgid "When you book an appointment, we store the name, email address and notes you enter, together with the time you chose. This information is added to our Google Calendar as an event (Google acts as our calendar provider) and is used to confirm, run and if needed cancel your appointment. You receive a confirmation email with a link to cancel."
 msgstr ""
 
-#: includes/class-aab-admin.php:183
-#: includes/class-aab-admin.php:326
-msgid "You do not have permission to do that."
-msgstr ""
-
-#: includes/class-aab-admin.php:295
+#: includes/class-aab-admin.php:297
 msgid "Settings saved. Your Google credentials changed, so connect Google Calendar again."
 msgstr ""
 
 #. translators: %s: lines that could not be read
-#: includes/class-aab-admin.php:299
+#: includes/class-aab-admin.php:301
 msgid "Settings saved, but these days-off lines could not be read and are ignored: %s. Use YYYY-MM-DD or YYYY-MM-DD to YYYY-MM-DD."
 msgstr ""
 
-#: includes/class-aab-admin.php:302
+#: includes/class-aab-admin.php:304
 msgid "Settings saved, but some hours could not be read and were cleared. Use 24-hour ranges like 09:00-12:00, 13:00-17:00."
 msgstr ""
 
-#: includes/class-aab-admin.php:304
+#: includes/class-aab-admin.php:306
 msgid "Settings saved."
 msgstr ""
 
-#: includes/class-aab-admin.php:313
+#: includes/class-aab-admin.php:315
 msgid "Add your Google client ID and secret first."
 msgstr ""
 
-#: includes/class-aab-admin.php:334
+#: includes/class-aab-admin.php:336
 msgid "The connection request expired or did not match. Click Connect Google Calendar again."
 msgstr ""
 
-#: includes/class-aab-admin.php:337
+#: includes/class-aab-admin.php:339
 msgid "Google Calendar was not connected because access was not granted."
 msgstr ""
 
-#: includes/class-aab-admin.php:342
+#: includes/class-aab-admin.php:344
 msgid "Google did not send an authorization code. Try connecting again."
 msgstr ""
 
 #. translators: %s: error from Google
-#: includes/class-aab-admin.php:347
+#: includes/class-aab-admin.php:349
 msgid "Google Calendar could not be connected: %s"
 msgstr ""
 
-#: includes/class-aab-admin.php:350
+#: includes/class-aab-admin.php:352
 msgid "Google Calendar connected. Choose your calendars below, then save."
 msgstr ""
 
-#: includes/class-aab-admin.php:359
+#: includes/class-aab-admin.php:361
 msgid "Google Calendar disconnected. Visitors can no longer book until you connect again."
 msgstr ""
 
-#: includes/class-aab-admin.php:386
+#: includes/class-aab-admin.php:388
 msgid "Export CSV"
 msgstr ""
 
-#: includes/class-aab-admin.php:452
+#: includes/class-aab-admin.php:456
 msgid "Problem log cleared."
 msgstr ""
 
 #. translators: 1: bookings checked, 2: cancelled, 3: moved, 4: reminders sent
-#: includes/class-aab-admin.php:465
+#: includes/class-aab-admin.php:469
 msgid "Checked %1$d upcoming bookings against Google Calendar: %2$d cancelled there, %3$d moved. %4$d reminders sent."
 msgstr ""
 
-#: includes/class-aab-admin.php:483
+#: includes/class-aab-admin.php:487
 #: includes/class-aab-bookings.php:36
 #: includes/class-aab-bookings.php:39
-#: blocks/booking/index.js:141
+#: blocks/booking/index.js:147
 msgid "Booking"
 msgstr ""
 
-#: includes/class-aab-admin.php:484
-#: includes/class-aab-admin.php:586
-#: includes/views/settings.php:358
-msgid "When"
+#: includes/class-aab-admin.php:489
+#: includes/class-aab-admin.php:599
+msgid "Type"
 msgstr ""
 
-#: includes/class-aab-admin.php:485
-#: includes/class-aab-admin.php:588
-#: includes/class-aab-bookings.php:941
-#: includes/class-aab-frontend.php:314
+#: includes/class-aab-admin.php:490
+#: includes/class-aab-admin.php:596
+#: includes/class-aab-bookings.php:1158
+#: includes/class-aab-frontend.php:345
 msgid "Email"
 msgstr ""
 
-#: includes/class-aab-admin.php:486
-#: includes/class-aab-admin.php:590
-#: includes/class-aab-bookings.php:953
+#: includes/class-aab-admin.php:491
+#: includes/class-aab-admin.php:598
+#: includes/class-aab-bookings.php:1178
 msgid "Status"
 msgstr ""
 
-#: includes/class-aab-admin.php:487
+#: includes/class-aab-admin.php:492
 msgid "Links"
 msgstr ""
 
-#: includes/class-aab-admin.php:511
+#: includes/class-aab-admin.php:519
 msgid "Confirmed"
 msgstr ""
 
-#: includes/class-aab-admin.php:512
+#: includes/class-aab-admin.php:520
 msgid "Cancelled"
 msgstr ""
 
-#: includes/class-aab-admin.php:513
+#: includes/class-aab-admin.php:521
 msgid "Not confirmed"
 msgstr ""
 
-#: includes/class-aab-admin.php:516
+#: includes/class-aab-admin.php:524
 msgid "Deleted in Google Calendar"
 msgstr ""
 
-#: includes/class-aab-admin.php:520
+#: includes/class-aab-admin.php:528
 msgid "Past"
 msgstr ""
 
-#: includes/class-aab-admin.php:528
+#: includes/class-aab-admin.php:536
 msgid "Calendar event"
 msgstr ""
 
-#: includes/class-aab-admin.php:531
-#: includes/views/settings.php:286
-msgid "Video call"
-msgstr ""
-
-#: includes/class-aab-admin.php:565
+#: includes/class-aab-admin.php:573
 msgid "Cancel this appointment? It will be removed from Google Calendar and the visitor will be emailed."
 msgstr ""
 
-#: includes/class-aab-admin.php:566
-#: includes/class-aab-frontend.php:354
-#: includes/class-aab-frontend.php:377
+#: includes/class-aab-admin.php:574
+#: includes/class-aab-frontend.php:435
+#: includes/class-aab-frontend.php:466
 msgid "Cancel appointment"
 msgstr ""
 
-#: includes/class-aab-admin.php:578
+#: includes/class-aab-admin.php:586
 msgid "Appointment details"
 msgstr ""
 
-#: includes/class-aab-admin.php:587
-#: includes/class-aab-bookings.php:937
-msgid "Name"
-msgstr ""
-
-#: includes/class-aab-admin.php:589
-#: includes/class-aab-bookings.php:945
-#: includes/class-aab-frontend.php:319
+#: includes/class-aab-admin.php:597
+#: includes/class-aab-bookings.php:1162
+#: includes/class-aab-frontend.php:350
 #: includes/views/appearance.php:140
 msgid "Phone"
 msgstr ""
 
-#: includes/class-aab-admin.php:591
-#: includes/class-aab-bookings.php:949
+#: includes/class-aab-admin.php:600
+#: includes/class-aab-bookings.php:1170
+msgid "Answers"
+msgstr ""
+
+#: includes/class-aab-admin.php:601
+#: includes/class-aab-bookings.php:1174
 msgid "Notes"
 msgstr ""
 
-#: includes/class-aab-admin.php:618
-msgid "Monday"
+#: includes/class-aab-availability.php:78
+#: includes/class-aab-bookings.php:160
+msgid "No appointment types are available."
 msgstr ""
 
-#: includes/class-aab-admin.php:619
-msgid "Tuesday"
-msgstr ""
-
-#: includes/class-aab-admin.php:620
-msgid "Wednesday"
-msgstr ""
-
-#: includes/class-aab-admin.php:621
-msgid "Thursday"
-msgstr ""
-
-#: includes/class-aab-admin.php:622
-msgid "Friday"
-msgstr ""
-
-#: includes/class-aab-admin.php:623
-msgid "Saturday"
-msgstr ""
-
-#: includes/class-aab-admin.php:624
-msgid "Sunday"
-msgstr ""
-
-#: includes/class-aab-availability.php:136
+#: includes/class-aab-availability.php:148
 msgid "That time was just taken. Pick another time."
 msgstr ""
 
@@ -283,136 +573,193 @@ msgstr ""
 msgid "No bookings yet."
 msgstr ""
 
-#: includes/class-aab-bookings.php:116
+#: includes/class-aab-bookings.php:126
+msgid "This appointment is already cancelled."
+msgstr ""
+
+#. translators: %d: hours
+#: includes/class-aab-bookings.php:132
+msgid "Appointments can only be changed online up to %d hour before they start. Reply to your confirmation email instead."
+msgid_plural "Appointments can only be changed online up to %d hours before they start. Reply to your confirmation email instead."
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/class-aab-bookings.php:133
+msgid "This appointment has already started, so it can’t be changed online."
+msgstr ""
+
+#: includes/class-aab-bookings.php:163
+#: includes/class-aab-bookings.php:417
 msgid "Someone else is booking that time right now. Pick another time."
 msgstr ""
 
 #. translators: 1: visitor name, 2: date and time
-#: includes/class-aab-bookings.php:229
+#: includes/class-aab-bookings.php:279
+#: includes/class-aab-bookings.php:458
 #: includes/class-aab-maintenance.php:166
 msgid "%1$s, %2$s"
 msgstr ""
 
-#: includes/class-aab-bookings.php:295
+#: includes/class-aab-bookings.php:348
 msgid "The booking could not be added to the calendar. Try again in a minute."
 msgstr ""
 
-#: includes/class-aab-bookings.php:345
+#: includes/class-aab-bookings.php:401
+#: includes/class-aab-bookings.php:489
 msgid "Booking not found."
+msgstr ""
+
+#: includes/class-aab-bookings.php:408
+msgid "That’s already your appointment time. Pick a different time."
+msgstr ""
+
+#: includes/class-aab-bookings.php:412
+msgid "This appointment can’t be moved again online. Reply to your confirmation email to change it."
+msgstr ""
+
+#: includes/class-aab-bookings.php:444
+msgid "Your appointment could not be moved right now. Try again in a minute."
 msgstr ""
 
 #. translators: %s: visitor name
 #. translators: %s: name
-#: includes/class-aab-bookings.php:568
-#: includes/class-aab-bookings.php:802
+#: includes/class-aab-bookings.php:730
+#: includes/class-aab-bookings.php:1014
 msgid "Name: %s"
 msgstr ""
 
 #. translators: %s: visitor email
 #. translators: %s: email
-#: includes/class-aab-bookings.php:570
-#: includes/class-aab-bookings.php:804
+#: includes/class-aab-bookings.php:732
+#: includes/class-aab-bookings.php:1016
 msgid "Email: %s"
 msgstr ""
 
 #. translators: %s: visitor phone number
 #. translators: %s: phone number
-#: includes/class-aab-bookings.php:574
-#: includes/class-aab-bookings.php:808
+#: includes/class-aab-bookings.php:737
+#: includes/class-aab-bookings.php:1020
 msgid "Phone: %s"
 msgstr ""
 
 #. translators: %s: site URL
-#: includes/class-aab-bookings.php:582
+#: includes/class-aab-bookings.php:748
 msgid "Booked through %s"
 msgstr ""
 
+#. translators: %s: appointment type
+#: includes/class-aab-bookings.php:798
+msgid "What: %s"
+msgstr ""
+
 #. translators: 1: date and time, 2: timezone
-#: includes/class-aab-bookings.php:615
+#: includes/class-aab-bookings.php:804
 msgid "When: %1$s (%2$s)"
 msgstr ""
 
 #. translators: %s: video call link
-#: includes/class-aab-bookings.php:619
-#: includes/class-aab-bookings.php:661
+#: includes/class-aab-bookings.php:809
+#: includes/class-aab-bookings.php:850
 msgid "Join the video call: %s"
 msgstr ""
 
 #. translators: %s: location
-#: includes/class-aab-bookings.php:624
+#: includes/class-aab-bookings.php:813
 msgid "Location: %s"
 msgstr ""
 
-#. translators: %s: cancel link
-#: includes/class-aab-bookings.php:630
-#: includes/class-aab-bookings.php:666
-msgid "Need to cancel? %s"
+#. translators: %s: link to reschedule or cancel
+#: includes/class-aab-bookings.php:819
+#: includes/class-aab-bookings.php:855
+msgid "Need to reschedule or cancel? %s"
 msgstr ""
 
 #. translators: %s: site name
-#: includes/class-aab-bookings.php:681
+#: includes/class-aab-bookings.php:870
 msgid "Appointment with %s"
 msgstr ""
 
 #. translators: %s: visitor name
-#: includes/class-aab-bookings.php:729
-#: includes/class-aab-bookings.php:751
-#: includes/class-aab-bookings.php:774
+#: includes/class-aab-bookings.php:918
+#: includes/class-aab-bookings.php:940
+#: includes/class-aab-bookings.php:964
 msgid "Hi %s,"
 msgstr ""
 
 #. translators: %s: site name
-#: includes/class-aab-bookings.php:732
+#: includes/class-aab-bookings.php:921
 msgid "Your appointment with %s is booked."
 msgstr ""
 
 #. translators: 1: site name, 2: date and time
-#: includes/class-aab-bookings.php:738
+#: includes/class-aab-bookings.php:927
 msgid "[%1$s] Appointment booked: %2$s"
 msgstr ""
 
 #. translators: %s: site name
-#: includes/class-aab-bookings.php:754
+#: includes/class-aab-bookings.php:943
 msgid "A reminder of your upcoming appointment with %s."
 msgstr ""
 
 #. translators: 1: site name, 2: date and time
-#: includes/class-aab-bookings.php:760
+#: includes/class-aab-bookings.php:949
 msgid "[%1$s] Reminder: appointment %2$s"
 msgstr ""
 
+#. translators: 1: old date and time
+#: includes/class-aab-bookings.php:968
+msgid "Your appointment has been moved from %1$s to the new time below."
+msgstr ""
+
 #. translators: 1: site name, 2: old date and time
-#: includes/class-aab-bookings.php:777
+#: includes/class-aab-bookings.php:970
 msgid "Your appointment with %1$s, previously %2$s, has moved."
 msgstr ""
 
 #. translators: 1: site name, 2: new date and time
-#: includes/class-aab-bookings.php:783
+#: includes/class-aab-bookings.php:976
 msgid "[%1$s] Appointment moved to %2$s"
 msgstr ""
 
-#. translators: %s: date and time
-#: includes/class-aab-bookings.php:799
-msgid "New appointment: %s"
+#. translators: 1: visitor name, 2: email, 3: old time, 4: new time
+#: includes/class-aab-bookings.php:983
+msgid ""
+"%1$s (%2$s) rescheduled their appointment.\n"
+"\n"
+"Was: %3$s\n"
+"Now: %4$s\n"
+"\n"
+"Google Calendar has been updated."
 msgstr ""
 
 #. translators: %s: Google Calendar event link
-#: includes/class-aab-bookings.php:817
+#: includes/class-aab-bookings.php:991
+#: includes/class-aab-bookings.php:1034
 msgid "Open in Google Calendar: %s"
 msgstr ""
 
 #. translators: 1: site name, 2: visitor name
-#: includes/class-aab-bookings.php:820
+#: includes/class-aab-bookings.php:994
+msgid "[%1$s] %2$s rescheduled"
+msgstr ""
+
+#. translators: %s: date and time
+#: includes/class-aab-bookings.php:1010
+msgid "New appointment: %s"
+msgstr ""
+
+#. translators: 1: site name, 2: visitor name
+#: includes/class-aab-bookings.php:1037
 msgid "[%1$s] New booking from %2$s"
 msgstr ""
 
 #. translators: 1: site name, 2: date and time
-#: includes/class-aab-bookings.php:834
+#: includes/class-aab-bookings.php:1051
 msgid "[%1$s] Appointment cancelled: %2$s"
 msgstr ""
 
 #. translators: 1: visitor name, 2: date and time
-#: includes/class-aab-bookings.php:838
+#: includes/class-aab-bookings.php:1055
 msgid ""
 "Hi %1$s,\n"
 "\n"
@@ -420,188 +767,256 @@ msgid ""
 msgstr ""
 
 #. translators: 1: visitor name, 2: email, 3: date and time
-#: includes/class-aab-bookings.php:845
+#: includes/class-aab-bookings.php:1062
 msgid "%1$s (%2$s) cancelled their appointment on %3$s. It has been removed from Google Calendar."
 msgstr ""
 
-#: includes/class-aab-bookings.php:878
-#: includes/class-aab-bookings.php:892
-#: includes/class-aab-bookings.php:929
+#: includes/class-aab-bookings.php:1095
+#: includes/class-aab-bookings.php:1109
+#: includes/class-aab-bookings.php:1146
 msgid "Appointment bookings"
 msgstr ""
 
-#: includes/class-aab-bookings.php:933
+#: includes/class-aab-bookings.php:1150
 msgid "Time"
 msgstr ""
 
-#: includes/class-aab-bookings.php:981
+#: includes/class-aab-bookings.php:1166
+msgid "Appointment type"
+msgstr ""
+
+#: includes/class-aab-bookings.php:1206
 msgid "Booking records were deleted from this site. Events already on the owner’s Google Calendar are not changed."
 msgstr ""
 
-#: includes/class-aab-frontend.php:221
+#: includes/class-aab-frontend.php:252
 msgid "Turn on JavaScript to book an appointment."
 msgstr ""
 
-#: includes/class-aab-frontend.php:235
+#: includes/class-aab-frontend.php:266
 msgid "You do not have permission to view this preview."
 msgstr ""
 
-#: includes/class-aab-frontend.php:297
+#: includes/class-aab-frontend.php:328
 msgid "Pick a day"
 msgstr ""
 
-#: includes/class-aab-frontend.php:298
+#: includes/class-aab-frontend.php:329
 msgid "Pick a time"
 msgstr ""
 
-#: includes/class-aab-frontend.php:299
+#: includes/class-aab-frontend.php:330
 msgid "Previous month"
 msgstr ""
 
-#: includes/class-aab-frontend.php:300
+#: includes/class-aab-frontend.php:331
 msgid "Next month"
 msgstr ""
 
-#: includes/class-aab-frontend.php:301
+#: includes/class-aab-frontend.php:332
 msgid "Loading open times…"
 msgstr ""
 
-#: includes/class-aab-frontend.php:302
+#: includes/class-aab-frontend.php:333
 msgid "Choose a highlighted day to see open times."
 msgstr ""
 
-#: includes/class-aab-frontend.php:303
+#: includes/class-aab-frontend.php:334
 msgid "No open times this month. Try the next month."
 msgstr ""
 
-#: includes/class-aab-frontend.php:304
+#: includes/class-aab-frontend.php:335
 msgid "No open times left on this day."
 msgstr ""
 
 #. translators: %d: number of open times
-#: includes/class-aab-frontend.php:306
+#: includes/class-aab-frontend.php:337
 msgid "%d open times"
 msgstr ""
 
-#: includes/class-aab-frontend.php:307
+#: includes/class-aab-frontend.php:338
 msgid "1 open time"
 msgstr ""
 
 #. translators: %s: timezone name
-#: includes/class-aab-frontend.php:309
+#: includes/class-aab-frontend.php:340
 msgid "Times are shown in your timezone, %s."
 msgstr ""
 
-#. translators: %d: appointment length in minutes
-#: includes/class-aab-frontend.php:311
-msgid "%d min"
-msgstr ""
-
-#: includes/class-aab-frontend.php:312
+#: includes/class-aab-frontend.php:343
 msgid "Change time"
 msgstr ""
 
-#: includes/class-aab-frontend.php:313
+#: includes/class-aab-frontend.php:344
 msgid "Your name"
 msgstr ""
 
-#: includes/class-aab-frontend.php:315
+#: includes/class-aab-frontend.php:346
 msgid "Anything I should know? (optional)"
 msgstr ""
 
-#: includes/class-aab-frontend.php:316
-#: includes/class-aab-rest.php:171
+#: includes/class-aab-frontend.php:347
+#: includes/class-aab-rest.php:308
 msgid "Enter your name."
 msgstr ""
 
-#: includes/class-aab-frontend.php:317
-#: includes/class-aab-rest.php:174
+#: includes/class-aab-frontend.php:348
+#: includes/class-aab-rest.php:311
 msgid "Enter a valid email address."
 msgstr ""
 
-#: includes/class-aab-frontend.php:318
-#: includes/class-aab-rest.php:187
+#: includes/class-aab-frontend.php:349
+#: includes/class-aab-rest.php:324
+#: includes/class-aab-types.php:429
 msgid "Check the box to continue."
 msgstr ""
 
-#: includes/class-aab-frontend.php:320
+#: includes/class-aab-frontend.php:351
 msgid "Phone (optional)"
 msgstr ""
 
-#: includes/class-aab-frontend.php:321
-#: includes/class-aab-rest.php:179
+#: includes/class-aab-frontend.php:352
+#: includes/class-aab-rest.php:316
 msgid "Enter your phone number."
 msgstr ""
 
 #. translators: %s: appointment start time
-#: includes/class-aab-frontend.php:323
+#: includes/class-aab-frontend.php:354
 msgid "Book %s"
 msgstr ""
 
-#: includes/class-aab-frontend.php:324
+#: includes/class-aab-frontend.php:355
 msgid "Booking…"
 msgstr ""
 
-#: includes/class-aab-frontend.php:325
+#: includes/class-aab-frontend.php:356
 msgid "Booked"
 msgstr ""
 
-#: includes/class-aab-frontend.php:326
+#: includes/class-aab-frontend.php:357
 msgid "Video call link"
 msgstr ""
 
-#: includes/class-aab-frontend.php:327
+#: includes/class-aab-frontend.php:358
 msgid "Book another time"
 msgstr ""
 
-#: includes/class-aab-frontend.php:328
+#: includes/class-aab-frontend.php:359
 msgid "Something went wrong. Check your connection and try again."
 msgstr ""
 
-#: includes/class-aab-frontend.php:329
+#: includes/class-aab-frontend.php:360
 msgid "Try again"
 msgstr ""
 
-#: includes/class-aab-frontend.php:330
+#: includes/class-aab-frontend.php:361
 msgid "Leave this field empty"
 msgstr ""
 
-#: includes/class-aab-frontend.php:358
-msgid "This appointment is already cancelled."
-msgstr ""
-
-#: includes/class-aab-frontend.php:360
-msgid "This cancel link is not valid. Reply to your confirmation email and we’ll sort it out."
-msgstr ""
-
 #: includes/class-aab-frontend.php:362
-msgid "This appointment has already started, so it can’t be cancelled online."
+msgid "What would you like to book?"
+msgstr ""
+
+#: includes/class-aab-frontend.php:365
+#: includes/class-aab-types.php:439
+msgid "Answer this question."
 msgstr ""
 
 #: includes/class-aab-frontend.php:366
-msgid "The appointment could not be cancelled right now. Try again in a few minutes, or reply to your confirmation email."
+#: includes/class-aab-types.php:437
+#: includes/class-aab-types.php:439
+msgid "Choose one of the options."
+msgstr ""
+
+#: includes/class-aab-frontend.php:367
+msgid "(optional)"
 msgstr ""
 
 #: includes/class-aab-frontend.php:368
+msgid "Choose…"
+msgstr ""
+
+#: includes/class-aab-frontend.php:369
+msgid "Your current time"
+msgstr ""
+
+#. translators: %s: new appointment time
+#: includes/class-aab-frontend.php:371
+msgid "Move to %s"
+msgstr ""
+
+#: includes/class-aab-frontend.php:372
+msgid "Moving…"
+msgstr ""
+
+#: includes/class-aab-frontend.php:373
+msgid "Moved"
+msgstr ""
+
+#: includes/class-aab-frontend.php:374
+msgid "Your appointment has a new time. A confirmation is on its way to your inbox."
+msgstr ""
+
+#: includes/class-aab-frontend.php:375
+msgid "Back to your appointment"
+msgstr ""
+
+#: includes/class-aab-frontend.php:411
+msgid "Your appointment"
+msgstr ""
+
+#: includes/class-aab-frontend.php:416
+msgid "This appointment is cancelled."
+msgstr ""
+
+#: includes/class-aab-frontend.php:419
+msgid "This link is no longer valid. If you cancelled, nothing else is needed. Otherwise reply to your confirmation email and we’ll sort it out."
+msgstr ""
+
+#: includes/class-aab-frontend.php:427
+msgid "The appointment could not be cancelled right now. Try again in a few minutes, or reply to your confirmation email."
+msgstr ""
+
+#: includes/class-aab-frontend.php:429
 msgid "Appointment cancelled"
 msgstr ""
 
 #. translators: %s: date and time
-#: includes/class-aab-frontend.php:370
+#: includes/class-aab-frontend.php:431
 msgid "Your appointment on %s is cancelled. You’ll get an email confirming it."
 msgstr ""
 
-#: includes/class-aab-frontend.php:371
+#: includes/class-aab-frontend.php:432
 msgid "Back to the site"
 msgstr ""
 
-#. translators: 1: name, 2: date and time
-#: includes/class-aab-frontend.php:375
-msgid "%1$s, your appointment is on %2$s."
+#: includes/class-aab-frontend.php:438
+msgid "Yes, cancel it"
 msgstr ""
 
-#: includes/class-aab-frontend.php:378
-msgid "Keep it and go back to the site"
+#: includes/class-aab-frontend.php:439
+msgid "Keep it"
+msgstr ""
+
+#: includes/class-aab-frontend.php:441
+msgid "Pick a new time"
+msgstr ""
+
+#: includes/class-aab-frontend.php:459
+msgid "Keep the current time"
+msgstr ""
+
+#: includes/class-aab-frontend.php:464
+msgid "Reschedule"
+msgstr ""
+
+#. translators: %s: current date and time
+#: includes/class-aab-frontend.php:509
+msgid "Currently: %s"
+msgstr ""
+
+#: includes/class-aab-frontend.php:513
+msgid "What"
 msgstr ""
 
 #: includes/class-aab-google.php:123
@@ -632,7 +1047,7 @@ msgid ""
 msgstr ""
 
 #. translators: %s: calendar ID
-#: includes/class-aab-google.php:489
+#: includes/class-aab-google.php:490
 msgid "Could not read availability for calendar %s."
 msgstr ""
 
@@ -712,48 +1127,111 @@ msgstr ""
 msgid "Booking hours follow daylight saving time correctly."
 msgstr ""
 
-#: includes/class-aab-rest.php:101
+#: includes/class-aab-rest.php:156
+msgid "That appointment type isn’t available. Reload the page and pick another."
+msgstr ""
+
+#: includes/class-aab-rest.php:169
+msgid "This link is no longer valid. Reply to your confirmation email and we’ll sort it out."
+msgstr ""
+
+#: includes/class-aab-rest.php:182
+msgid "Too many attempts. Wait a few minutes and try again."
+msgstr ""
+
+#: includes/class-aab-rest.php:214
 msgid "Online booking is unavailable right now. Please get in touch another way."
 msgstr ""
 
-#: includes/class-aab-rest.php:114
+#: includes/class-aab-rest.php:227
 msgid "Invalid date range."
 msgstr ""
 
-#: includes/class-aab-rest.php:118
+#: includes/class-aab-rest.php:231
 msgid "Ask for at most six weeks at a time."
 msgstr ""
 
-#: includes/class-aab-rest.php:121
+#: includes/class-aab-rest.php:234
 msgid "Too many requests. Wait a few minutes and try again."
 msgstr ""
 
-#: includes/class-aab-rest.php:156
+#: includes/class-aab-rest.php:285
 msgid "The booking could not be submitted. Reload the page and try again."
 msgstr ""
 
-#: includes/class-aab-rest.php:159
+#: includes/class-aab-rest.php:288
 msgid "Too many bookings from your connection. Try again later or get in touch directly."
 msgstr ""
 
-#: includes/class-aab-rest.php:181
+#: includes/class-aab-rest.php:318
 msgid "Enter a valid phone number."
 msgstr ""
 
-#: includes/class-aab-rest.php:184
+#: includes/class-aab-rest.php:321
 msgid "Keep notes under 2,000 characters."
 msgstr ""
 
-#: includes/class-aab-rest.php:190
+#: includes/class-aab-rest.php:328
 msgid "Check the highlighted fields."
 msgstr ""
 
 #. translators: %d: number of upcoming appointments allowed
-#: includes/class-aab-rest.php:202
+#: includes/class-aab-rest.php:340
 msgid "You already have %d upcoming appointment. Cancel it from your confirmation email or reply to it to change it."
 msgid_plural "You already have %d upcoming appointments. Cancel one from its confirmation email or reply to it to make a change."
 msgstr[0] ""
 msgstr[1] ""
+
+#: includes/class-aab-types.php:38
+msgid "Short answer"
+msgstr ""
+
+#: includes/class-aab-types.php:39
+msgid "Long answer"
+msgstr ""
+
+#: includes/class-aab-types.php:40
+msgid "Dropdown"
+msgstr ""
+
+#: includes/class-aab-types.php:41
+msgid "Checkbox"
+msgstr ""
+
+#. translators: %d: minutes
+#: includes/class-aab-types.php:80
+msgid "%d-minute appointment"
+msgstr ""
+
+#: includes/class-aab-types.php:160
+msgid "Appointment"
+msgstr ""
+
+#: includes/class-aab-types.php:302
+msgid "Give the appointment type a name."
+msgstr ""
+
+#. translators: %s: weekday
+#: includes/class-aab-types.php:319
+msgid "The hours for %s could not be read. Use 24-hour ranges like 09:00-12:00, 13:00-17:00."
+msgstr ""
+
+#. translators: %s: question label
+#: includes/class-aab-types.php:350
+msgid "Add at least one choice to the dropdown “%s”, one per line."
+msgstr ""
+
+#: includes/class-aab-types.php:431
+msgid "Yes"
+msgstr ""
+
+#: includes/class-aab-types.php:431
+msgid "No"
+msgstr ""
+
+#: includes/class-aab-types.php:435
+msgid "Keep this under 2,000 characters."
+msgstr ""
 
 #. translators: %s: CSS length such as 8px
 #: includes/views/appearance.php:20
@@ -762,27 +1240,27 @@ msgstr ""
 
 #: includes/views/appearance.php:21
 #: includes/views/appearance.php:53
-#: blocks/booking/index.js:165
+#: blocks/booking/index.js:179
 msgid "Match my theme"
 msgstr ""
 
 #: includes/views/appearance.php:22
-#: blocks/booking/index.js:166
+#: blocks/booking/index.js:180
 msgid "Square"
 msgstr ""
 
 #: includes/views/appearance.php:23
-#: blocks/booking/index.js:167
+#: blocks/booking/index.js:181
 msgid "Slightly rounded"
 msgstr ""
 
 #: includes/views/appearance.php:24
-#: blocks/booking/index.js:168
+#: blocks/booking/index.js:182
 msgid "Rounded"
 msgstr ""
 
 #: includes/views/appearance.php:25
-#: blocks/booking/index.js:169
+#: blocks/booking/index.js:183
 msgid "Very rounded"
 msgstr ""
 
@@ -835,27 +1313,27 @@ msgid "Use the calendar’s own style (accent color)"
 msgstr ""
 
 #: includes/views/appearance.php:83
-#: blocks/booking/index.js:161
+#: blocks/booking/index.js:175
 msgid "Corners"
 msgstr ""
 
 #: includes/views/appearance.php:92
-#: blocks/booking/index.js:174
+#: blocks/booking/index.js:188
 msgid "Spacing"
 msgstr ""
 
 #: includes/views/appearance.php:94
-#: blocks/booking/index.js:176
+#: blocks/booking/index.js:190
 msgid "Compact"
 msgstr ""
 
 #: includes/views/appearance.php:95
-#: blocks/booking/index.js:176
+#: blocks/booking/index.js:190
 msgid "Comfortable"
 msgstr ""
 
 #: includes/views/appearance.php:96
-#: blocks/booking/index.js:176
+#: blocks/booking/index.js:190
 msgid "Roomy"
 msgstr ""
 
@@ -872,12 +1350,12 @@ msgid "My theme’s page color"
 msgstr ""
 
 #: includes/views/appearance.php:113
-#: blocks/booking/index.js:180
+#: blocks/booking/index.js:194
 msgid "Headings"
 msgstr ""
 
 #: includes/views/appearance.php:115
-#: blocks/booking/index.js:182
+#: blocks/booking/index.js:196
 msgid "My theme’s heading font"
 msgstr ""
 
@@ -1075,274 +1553,273 @@ msgstr ""
 msgid "When people can book"
 msgstr ""
 
-#. translators: %s: timezone name
+#. translators: %s: link to the appointment types screen
 #: includes/views/settings.php:222
+msgid "Appointment length, start times and booking questions are set per %s. Types use these hours unless you give them their own."
+msgstr ""
+
+#: includes/views/settings.php:223
+msgid "appointment type"
+msgstr ""
+
+#. translators: %s: timezone name
+#: includes/views/settings.php:231
 msgid "Hours use 24-hour time in your site timezone (%s). Separate breaks with commas, e.g. 09:00-12:00, 13:00-17:00. Leave a day empty to close it."
 msgstr ""
 
-#: includes/views/settings.php:231
-msgid "Closed"
-msgstr ""
-
-#: includes/views/settings.php:239
-msgid "Appointment length"
-msgstr ""
-
-#: includes/views/settings.php:239
-#: includes/views/settings.php:240
-#: includes/views/settings.php:241
-#: includes/views/settings.php:242
-msgid "minutes"
-msgstr ""
-
-#: includes/views/settings.php:240
-msgid "Start times every"
-msgstr ""
-
-#: includes/views/settings.php:240
-msgid "E.g. 30 offers 9:00, 9:30, 10:00…"
-msgstr ""
-
-#: includes/views/settings.php:241
+#: includes/views/settings.php:248
 msgid "Free time before"
 msgstr ""
 
-#: includes/views/settings.php:241
+#: includes/views/settings.php:248
 msgid "Keeps this much time clear before each appointment."
 msgstr ""
 
-#: includes/views/settings.php:242
+#: includes/views/settings.php:249
 msgid "Free time after"
 msgstr ""
 
-#: includes/views/settings.php:243
+#: includes/views/settings.php:250
 msgid "Minimum notice"
 msgstr ""
 
-#: includes/views/settings.php:243
+#: includes/views/settings.php:250
 msgid "hours"
 msgstr ""
 
-#: includes/views/settings.php:243
+#: includes/views/settings.php:250
 msgid "No bookings sooner than this from now."
 msgstr ""
 
-#: includes/views/settings.php:244
+#: includes/views/settings.php:251
 msgid "Book up to"
 msgstr ""
 
-#: includes/views/settings.php:244
+#: includes/views/settings.php:251
 msgid "days ahead"
 msgstr ""
 
-#: includes/views/settings.php:245
+#: includes/views/settings.php:252
 msgid "Most bookings per day"
 msgstr ""
 
-#: includes/views/settings.php:245
+#: includes/views/settings.php:252
 msgid "0 means no limit."
 msgstr ""
 
-#: includes/views/settings.php:246
+#: includes/views/settings.php:253
 msgid "Upcoming bookings per person"
 msgstr ""
 
-#: includes/views/settings.php:246
+#: includes/views/settings.php:253
 msgid "How many future appointments one email address can hold at once. 0 means no limit."
 msgstr ""
 
-#: includes/views/settings.php:261
-msgid "Days off"
+#: includes/views/settings.php:254
+msgid "Changes allowed until"
 msgstr ""
 
-#: includes/views/settings.php:264
-msgid "One date or range per line (YYYY-MM-DD, or YYYY-MM-DD to YYYY-MM-DD). Nothing can be booked on these days."
-msgstr ""
-
-#: includes/views/settings.php:265
-msgid "Tip: all-day events in Google Calendar (vacations, holidays) are marked “Free” by default, so they don’t block bookings. Set them to “Busy” in Google Calendar, or list the dates here."
-msgstr ""
-
-#: includes/views/settings.php:272
-msgid "The appointment"
-msgstr ""
-
-#: includes/views/settings.php:275
-msgid "Calendar event title"
-msgstr ""
-
-#: includes/views/settings.php:278
-msgid "{name} is replaced with the visitor’s name, {site} with your site name."
-msgstr ""
-
-#: includes/views/settings.php:282
-msgid "Location"
-msgstr ""
-
-#: includes/views/settings.php:283
-msgid "Optional: an address or phone number"
-msgstr ""
-
-#: includes/views/settings.php:287
-msgid "Add a Google Meet link to each appointment"
-msgstr ""
-
-#: includes/views/settings.php:290
-msgid "Calendar invite"
-msgstr ""
-
-#: includes/views/settings.php:291
-msgid "Add the visitor as a guest so Google sends them an invite and updates"
-msgstr ""
-
-#: includes/views/settings.php:294
-msgid "Phone number"
-msgstr ""
-
-#: includes/views/settings.php:297
-msgid "Don’t ask"
-msgstr ""
-
-#: includes/views/settings.php:298
-msgid "Ask (optional)"
-msgstr ""
-
-#: includes/views/settings.php:299
-msgid "Ask (required)"
-msgstr ""
-
-#: includes/views/settings.php:304
-msgid "Notify me at"
-msgstr ""
-
-#: includes/views/settings.php:308
-msgid "Reminder email"
-msgstr ""
-
-#: includes/views/settings.php:310
+#: includes/views/settings.php:254
+#: includes/views/settings.php:319
 msgid "hours before"
 msgstr ""
 
-#: includes/views/settings.php:311
+#: includes/views/settings.php:254
+msgid "Visitors can reschedule or cancel online until this long before the appointment. 0 means any time before it starts."
+msgstr ""
+
+#: includes/views/settings.php:255
+msgid "Reschedules per booking"
+msgstr ""
+
+#: includes/views/settings.php:255
+msgid "How many times a visitor can move one appointment online. 0 means no limit."
+msgstr ""
+
+#: includes/views/settings.php:270
+msgid "Days off"
+msgstr ""
+
+#: includes/views/settings.php:273
+msgid "One date or range per line (YYYY-MM-DD, or YYYY-MM-DD to YYYY-MM-DD). Nothing can be booked on these days."
+msgstr ""
+
+#: includes/views/settings.php:274
+msgid "Tip: all-day events in Google Calendar (vacations, holidays) are marked “Free” by default, so they don’t block bookings. Set them to “Busy” in Google Calendar, or list the dates here."
+msgstr ""
+
+#: includes/views/settings.php:281
+msgid "The appointment"
+msgstr ""
+
+#: includes/views/settings.php:284
+msgid "Calendar event title"
+msgstr ""
+
+#: includes/views/settings.php:287
+msgid "{name} is replaced with the visitor’s name, {type} with the appointment type, {site} with your site name."
+msgstr ""
+
+#: includes/views/settings.php:296
+msgid "Add a Google Meet link to each appointment"
+msgstr ""
+
+#: includes/views/settings.php:299
+msgid "Calendar invite"
+msgstr ""
+
+#: includes/views/settings.php:300
+msgid "Add the visitor as a guest so Google sends them an invite and updates"
+msgstr ""
+
+#: includes/views/settings.php:303
+msgid "Phone number"
+msgstr ""
+
+#: includes/views/settings.php:306
+msgid "Don’t ask"
+msgstr ""
+
+#: includes/views/settings.php:307
+msgid "Ask (optional)"
+msgstr ""
+
+#: includes/views/settings.php:308
+msgid "Ask (required)"
+msgstr ""
+
+#: includes/views/settings.php:313
+msgid "Notify me at"
+msgstr ""
+
+#: includes/views/settings.php:317
+msgid "Reminder email"
+msgstr ""
+
+#: includes/views/settings.php:320
 msgid "0 turns reminders off. Google Calendar also reminds invited guests."
 msgstr ""
 
-#: includes/views/settings.php:315
+#: includes/views/settings.php:324
 msgid "Message after booking"
 msgstr ""
 
-#: includes/views/settings.php:319
+#: includes/views/settings.php:328
 msgid "Consent checkbox"
 msgstr ""
 
-#: includes/views/settings.php:321
+#: includes/views/settings.php:330
 msgid "Optional, e.g. I agree to the privacy policy."
 msgstr ""
 
-#: includes/views/settings.php:322
+#: includes/views/settings.php:331
 msgid "When filled in, visitors must tick a box with this text before booking."
 msgstr ""
 
-#: includes/views/settings.php:331
+#: includes/views/settings.php:340
 msgid "Show the booking calendar"
 msgstr ""
 
-#: includes/views/settings.php:332
+#: includes/views/settings.php:341
 msgid "Add the “Appointment Booking” block to any page, or paste this shortcode:"
 msgstr ""
 
-#: includes/views/settings.php:336
+#: includes/views/settings.php:345
 msgid "When uninstalling"
 msgstr ""
 
-#: includes/views/settings.php:337
+#: includes/views/settings.php:346
 msgid "Delete all settings and booking records (events stay in Google Calendar)"
 msgstr ""
 
-#: includes/views/settings.php:340
+#: includes/views/settings.php:349
 msgid "Keep booking records"
 msgstr ""
 
-#: includes/views/settings.php:342
+#: includes/views/settings.php:351
 msgid "days after the appointment"
 msgstr ""
 
-#: includes/views/settings.php:343
+#: includes/views/settings.php:352
 msgid "Older records (names, emails, notes) are deleted from this site automatically. 0 keeps them. Google Calendar events are not touched."
 msgstr ""
 
-#: includes/views/settings.php:349
+#: includes/views/settings.php:358
 msgid "Save settings"
 msgstr ""
 
-#: includes/views/settings.php:355
+#: includes/views/settings.php:364
 msgid "Recent problems talking to Google"
 msgstr ""
 
-#: includes/views/settings.php:356
+#: includes/views/settings.php:365
 msgid "Occasional timeouts are normal and are retried automatically. Repeated errors usually mean the connection needs attention."
 msgstr ""
 
-#: includes/views/settings.php:358
+#: includes/views/settings.php:367
 msgid "Doing"
 msgstr ""
 
-#: includes/views/settings.php:358
+#: includes/views/settings.php:367
 msgid "Error"
 msgstr ""
 
-#: includes/views/settings.php:372
+#: includes/views/settings.php:381
 msgid "Clear"
 msgstr ""
 
-#: blocks/booking/index.js:119
+#: blocks/booking/index.js:125
 msgid "Default (site setting)"
 msgstr ""
 
-#: blocks/booking/index.js:143
+#: blocks/booking/index.js:149
 msgid "Heading above the calendar"
 msgstr ""
 
-#: blocks/booking/index.js:144
+#: blocks/booking/index.js:150
 msgid "Optional, e.g. Book a 30-minute call."
 msgstr ""
 
-#: blocks/booking/index.js:148
-msgid "Hours and calendars are set under Appointments → Settings. The preview uses sample times."
+#: blocks/booking/index.js:157
+msgid "All visible types (visitor picks)"
 msgstr ""
 
-#: blocks/booking/index.js:152
+#: blocks/booking/index.js:162
+msgid "Types, hours and calendars are set under Appointments. The preview uses sample times."
+msgstr ""
+
+#: blocks/booking/index.js:166
 msgid "Calendar style"
 msgstr ""
 
-#: blocks/booking/index.js:153
+#: blocks/booking/index.js:167
 msgid "Overrides for this block only. Text color, background, font and spacing are under the Styles tab."
 msgstr ""
 
-#: blocks/booking/index.js:155
+#: blocks/booking/index.js:169
 msgid "Booking button and fields"
 msgstr ""
 
-#: blocks/booking/index.js:157
+#: blocks/booking/index.js:171
 msgid "Use my theme’s style"
 msgstr ""
 
-#: blocks/booking/index.js:157
+#: blocks/booking/index.js:171
 msgid "Use the calendar’s style"
 msgstr ""
 
-#: blocks/booking/index.js:182
+#: blocks/booking/index.js:196
 msgid "Same as the text around it"
 msgstr ""
 
-#: blocks/booking/index.js:191
+#: blocks/booking/index.js:205
 msgid "Calendar colors"
 msgstr ""
 
-#: blocks/booking/index.js:194
+#: blocks/booking/index.js:208
 msgid "Accent"
 msgstr ""
 
-#: blocks/booking/index.js:199
+#: blocks/booking/index.js:213
 msgid "Calendar box"
 msgstr ""

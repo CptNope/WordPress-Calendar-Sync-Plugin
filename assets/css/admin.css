@@ -215,3 +215,107 @@
 .aab-log-clear {
 	margin-top: 10px;
 }
+
+/* Appointment types ---------------------------------------------------------- */
+.aab-types-intro {
+	max-width: 760px;
+	margin: 12px 0 16px;
+}
+
+.aab-types-table {
+	max-width: 1100px;
+}
+
+.aab-types-table td {
+	vertical-align: middle;
+}
+
+.aab-order {
+	white-space: nowrap;
+	text-align: right;
+}
+
+.aab-pill {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 1px 8px;
+	border-radius: 99px;
+	background: #f0f0f1;
+	color: #50575e;
+	font-size: 12px;
+}
+
+.aab-code {
+	user-select: all;
+}
+
+.aab-type-hours.is-off {
+	opacity: 0.5;
+}
+
+.aab-questions {
+	display: grid;
+	gap: 10px;
+	max-width: 880px;
+}
+
+.aab-question {
+	display: grid;
+	grid-template-columns: minmax(0, 2fr) minmax(140px, 1fr);
+	gap: 8px 16px;
+	padding: 12px 14px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #f6f7f7;
+}
+
+.aab-question label {
+	display: block;
+	margin-bottom: 4px;
+	font-weight: 600;
+}
+
+.aab-question__main input,
+.aab-question select,
+.aab-question textarea {
+	width: 100%;
+	max-width: none;
+}
+
+.aab-question__options {
+	grid-column: 1 / -1;
+	display: none;
+}
+
+.aab-question[data-kind="select"] .aab-question__options {
+	display: block;
+}
+
+.aab-question__actions {
+	grid-column: 1 / -1;
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+.aab-question__actions label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin: 0;
+	font-weight: normal;
+}
+
+.aab-question__remove {
+	margin-left: auto !important;
+}
+
+@media (max-width: 782px) {
+	.aab-question {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.aab-question:first-child .aab-question__up {
+	visibility: hidden;
+}

@@ -3,15 +3,18 @@
 A WordPress plugin that lets visitors book appointments with you. Open times are read live from your Google Calendar, and every booking is added to it — with a Google Meet link and a calendar invite for the guest if you want.
 
 - **Live availability** – reads free/busy from one or more Google calendars, so anything already on your calendar is never offered.
-- **Your hours, your rules** – weekly hours with breaks, appointment length, start-time spacing, buffers before/after, minimum notice, how far ahead, and a daily cap.
+- **Appointment types** – e.g. a 15-minute intro and a 60-minute on-site consult, each with its own length, start-time spacing, hours, location, video-call setting and booking questions. Visitors pick a type, then a time.
+- **Custom booking questions** – short answer, long answer, dropdown or checkbox, required or optional, per type. Answers land in the Google event, your email, the booking record and the CSV.
+- **Self-service rescheduling** – every email links to a page where the visitor can move or cancel the appointment, with a cut-off ("no changes within 24 hours") and an optional limit on how many times one booking can move.
+- **Your hours, your rules** – weekly hours with breaks, buffers before/after, minimum notice, how far ahead, and a daily cap.
 - **Bookings go straight to Google** – event with the visitor's details, optional Meet link, optional guest invite.
 - **No double bookings** – an atomic database lock plus a live re-check against Google at the moment of booking.
 - **Stays in step with Google Calendar** – delete or move an appointment in Google Calendar and the site follows within the hour (and emails the visitor).
-- **Emails** – confirmation with a cancel link (plus a calendar file when Google isn't sending an invite), reminder before the appointment, move/cancel notices, owner notifications.
+- **Emails** – confirmation with a reschedule/cancel link (plus a calendar file when Google isn't sending an invite), reminder before the appointment, move/cancel notices, owner notifications.
 - **Booking rules** – weekly hours with breaks, days off, buffers, notice, booking window, daily cap, a cap on upcoming bookings per person, optional or required phone number.
 - **Shows times in the visitor's timezone** and adapts to its own width, so it fits pages, columns and sidebars.
 - **Matches any theme** – fonts, colors, buttons, form fields, corners and heading font come from the active theme (block or classic), or style it yourself. See [Styling](#styling).
-- **Block + shortcode** – "Appointment Booking" block with a live styled preview, or `[anderson_booking heading="Book a call"]`.
+- **Block + shortcode** – "Appointment Booking" block with a live styled preview, or `[anderson_booking heading="Book a call"]`. Show a single type with `[anderson_booking type="consult"]` or the block's type setting.
 - **Private by design** – only the narrowest Calendar scopes; client secret and refresh token are encrypted at rest; no third-party services besides Google; personal-data export/erase hooks.
 - **No build step, no Composer** – plain PHP and JavaScript.
 
@@ -37,6 +40,28 @@ You can keep credentials out of the database by defining them in `wp-config.php`
 define( 'AAB_GOOGLE_CLIENT_ID', '…apps.googleusercontent.com' );
 define( 'AAB_GOOGLE_CLIENT_SECRET', '…' );
 ```
+
+## Appointment types, questions and rescheduling
+
+**Appointments → Appointment types** lists what visitors can book. Each type has:
+
+| Setting | Notes |
+| --- | --- |
+| Name, description | Shown on the type picker. |
+| Length, start times every | E.g. 60 minutes, offered every 30 minutes. |
+| Hours | Your usual hours (Settings) or the type's own weekly hours. Other appointments and Google events still block times across all types. |
+| Location, video call | Overrides the defaults from Settings: an address for in-person types, or no Meet link. |
+| Questions | Short answer, long answer, dropdown, checkbox; required or optional; reorderable. |
+| Notes box | Show or hide "Anything I should know?". |
+| Visible | Hide a type without deleting it. |
+
+Buffers, minimum notice, booking window, days off and the daily cap are shared, because one calendar can only hold one appointment at a time. Appointments booked through the plugin keep their buffers on both sides.
+
+The order in the list is the order visitors see. With one visible type the picker is skipped. `[anderson_booking type="ID"]` (or the block's **Appointment types** setting) shows one type only, so you can put the consult on your services page and the intro call on your contact page.
+
+**Rescheduling.** Confirmation, reminder and change emails link to a page on your site (styled by your theme) where the visitor sees the appointment and can **Reschedule** or **Cancel**. Rescheduling shows the same calendar for that appointment's type, treats the appointment's current slot as free (so it can move 30 minutes later even though that overlaps its old time), locks and re-checks the new time live, moves the Google event in place (same event, same Meet link, guests updated) and emails both of you. Settings: **Changes allowed until N hours before** and **Reschedules per booking**.
+
+Upgrading from 1.2 creates one type from your previous length and start-time settings; nothing else changes until you add more. Old emailed cancel links keep working and open the new page.
 
 ## Styling
 
@@ -112,10 +137,12 @@ Filters for developers:
 | Google OAuth 2.0 + Calendar v3 client (WordPress HTTP API) | `includes/class-aab-google.php` |
 | Slot calculation (weekly hours → candidates → minus busy + buffers) | `includes/class-aab-availability.php` |
 | Bookings (private post type), lock + live re-check, emails, cancel | `includes/class-aab-bookings.php` |
-| Public REST API: `GET aab/v1/availability`, `POST aab/v1/bookings` | `includes/class-aab-rest.php` |
+| Public REST API: `GET aab/v1/availability`, `POST aab/v1/bookings`, `POST aab/v1/bookings/{id}/reschedule` | `includes/class-aab-rest.php` |
 | Theme detection and style resolution | `includes/class-aab-style.php` |
 | Shortcode, block, appearance preview, visitor cancel page | `includes/class-aab-frontend.php` |
 | Hourly sync, reminders, retention, Site Health checks | `includes/class-aab-maintenance.php` |
+| Appointment types and question validation | `includes/class-aab-types.php` |
+| Appointment types admin screen | `includes/class-aab-admin-types.php`, `assets/js/admin-types.js` |
 | Settings screen and bookings list | `includes/class-aab-admin.php`, `includes/views/` |
 | Widget | `assets/js/booking.js`, `assets/css/booking.css` |
 
@@ -129,12 +156,18 @@ Spam protection: honeypot field, a minimum time on the form, and per-IP rate lim
 
 - `do_action( 'aab_booking_confirmed', $booking )`
 - `do_action( 'aab_booking_cancelled', $booking, $by )` — `$by` is `visitor` or `admin`
+- `do_action( 'aab_booking_rescheduled', $booking, $old_start )`
 - `apply_filters( 'aab_client_ip', $ip )`
 - Styling filters: see [Styling](#styling)
 
 ### Cancelling
 
 Visitors use the link in their confirmation email (it shows a confirm button first, so mail-app link scanners can't cancel by accident). You can cancel from **Appointments → Bookings** (row action), or trash an upcoming booking; both delete the Google event and email the visitor.
+
+## Research and roadmap
+
+- [Competitive analysis](docs/research/competitive-analysis.md): how the WordPress booking plugins compare and where this one wins.
+- [Roadmap](docs/ROADMAP.md)
 
 ## License
 

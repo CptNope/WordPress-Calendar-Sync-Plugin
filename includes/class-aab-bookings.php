@@ -92,36 +92,83 @@ final class AAB_Bookings {
 			'calendar_id' => (string) $m( 'calendar_id' ),
 			'meet_link'   => (string) $m( 'meet_link' ),
 			'event_link'  => (string) $m( 'event_link' ),
+			'type'        => (string) $m( 'type' ),
+			'type_name'   => (string) $m( 'type_name' ),
+			'answers'     => is_array( $m( 'answers' ) ) ? $m( 'answers' ) : array(),
+			// Bookings made before 1.3 have no stored location: fall back to the global one.
+			'location'    => metadata_exists( 'post', $post->ID, '_aab_location' ) ? (string) $m( 'location' ) : trim( (string) AAB_Settings::get( 'location' ) ),
+			'reschedules' => (int) $m( 'reschedules' ),
 		);
+	}
+
+	/**
+	 * The appointment type a booking was made with (or a stand-in if that type was deleted).
+	 *
+	 * @param array $booking Booking.
+	 * @return array
+	 */
+	public static function type_of( array $booking ) {
+		$type = '' !== $booking['type'] ? AAB_Types::get( $booking['type'] ) : null;
+		if ( ! $type ) {
+			$type = AAB_Types::fallback( (int) round( ( $booking['end'] - $booking['start'] ) / MINUTE_IN_SECONDS ), $booking['type_name'] );
+		}
+		return $type;
+	}
+
+	/**
+	 * Can the visitor still change (reschedule or cancel) this booking online?
+	 *
+	 * @param array $booking Booking.
+	 * @return true|WP_Error
+	 */
+	public static function can_change( array $booking ) {
+		if ( 'confirmed' !== $booking['status'] ) {
+			return new WP_Error( 'aab_not_confirmed', __( 'This appointment is already cancelled.', 'anderson-appointment-booking' ), array( 'status' => 409 ) );
+		}
+		$cutoff = (int) AAB_Settings::get( 'change_cutoff' ) * HOUR_IN_SECONDS;
+		if ( $booking['start'] - $cutoff <= time() ) {
+			$message = $cutoff
+				/* translators: %d: hours */
+				? sprintf( _n( 'Appointments can only be changed online up to %d hour before they start. Reply to your confirmation email instead.', 'Appointments can only be changed online up to %d hours before they start. Reply to your confirmation email instead.', (int) AAB_Settings::get( 'change_cutoff' ), 'anderson-appointment-booking' ), (int) AAB_Settings::get( 'change_cutoff' ) )
+				: __( 'This appointment has already started, so it can’t be changed online.', 'anderson-appointment-booking' );
+			return new WP_Error( 'aab_too_late', $message, array( 'status' => 403 ) );
+		}
+		return true;
 	}
 
 	/**
 	 * Create a booking: lock the slot, re-check Google live, add the event, store and email.
 	 *
-	 * @param int   $start   Unix start time.
-	 * @param array $visitor name, email, notes, phone.
+	 * @param int        $start   Unix start time.
+	 * @param array      $visitor name, email, notes, phone, answers (list of {label, value}).
+	 * @param array|null $type    Appointment type (null: the first active one).
 	 * @return array|WP_Error Booking.
 	 */
-	public static function create( $start, array $visitor ) {
+	public static function create( $start, array $visitor, $type = null ) {
 		$visitor = wp_parse_args(
 			$visitor,
 			array(
-				'name'  => '',
-				'email' => '',
-				'notes' => '',
-				'phone' => '',
+				'name'    => '',
+				'email'   => '',
+				'notes'   => '',
+				'phone'   => '',
+				'answers' => array(),
 			)
 		);
+		$type    = is_array( $type ) ? $type : AAB_Types::first();
+		if ( ! $type ) {
+			return new WP_Error( 'aab_no_types', __( 'No appointment types are available.', 'anderson-appointment-booking' ), array( 'status' => 503 ) );
+		}
 		if ( ! self::acquire_lock( $start ) ) {
 			return new WP_Error( 'aab_slot_taken', __( 'Someone else is booking that time right now. Pick another time.', 'anderson-appointment-booking' ), array( 'status' => 409 ) );
 		}
 
 		try {
-			$check = AAB_Availability::check_slot( $start );
+			$check = AAB_Availability::check_slot( $start, $type );
 			if ( is_wp_error( $check ) ) {
 				return $check;
 			}
-			return self::insert( $start, $visitor );
+			return self::insert( $start, $visitor, $type );
 		} finally {
 			self::release_lock( $start );
 		}
@@ -210,14 +257,17 @@ final class AAB_Bookings {
 	 *
 	 * @param int   $start   Start.
 	 * @param array $visitor Visitor details.
+	 * @param array $type    Appointment type.
 	 * @return array|WP_Error
 	 */
-	private static function insert( $start, array $visitor ) {
+	private static function insert( $start, array $visitor, array $type ) {
 		$name     = $visitor['name'];
 		$email    = $visitor['email'];
 		$notes    = $visitor['notes'];
 		$phone    = $visitor['phone'];
-		$end      = $start + AAB_Availability::duration_seconds();
+		$answers  = $visitor['answers'];
+		$location = AAB_Types::location( $type );
+		$end      = $start + AAB_Availability::duration_seconds( $type );
 		$calendar = (string) AAB_Settings::get( 'booking_calendar' );
 		$token    = wp_generate_password( 32, false );
 
@@ -235,6 +285,10 @@ final class AAB_Bookings {
 					'_aab_email'       => $email,
 					'_aab_notes'       => $notes,
 					'_aab_phone'       => $phone,
+					'_aab_type'        => $type['id'],
+					'_aab_type_name'   => $type['name'],
+					'_aab_answers'     => $answers,
+					'_aab_location'    => $location,
 					'_aab_status'      => 'pending',
 					'_aab_calendar_id' => $calendar,
 					'_aab_cancel_hash' => self::hash_token( $token ),
@@ -252,8 +306,8 @@ final class AAB_Bookings {
 		$event = array(
 			// A client-chosen ID makes the insert safe to retry: a repeat gets "already exists" instead of a duplicate.
 			'id'                 => self::event_id( $post_id ),
-			'summary'            => self::render_title( $name ),
-			'description'        => self::event_description( $name, $email, $notes, $phone ),
+			'summary'            => self::render_title( $name, $type['name'] ),
+			'description'        => self::event_description( $name, $email, $notes, $phone, $type['name'], $answers ),
 			'start'              => array(
 				'dateTime' => wp_date( 'c', $start ),
 				'timeZone' => self::google_timezone( $tz ),
@@ -265,7 +319,6 @@ final class AAB_Bookings {
 			'reminders'          => array( 'useDefault' => true ),
 			'extendedProperties' => array( 'private' => array( 'aab_booking_id' => (string) $post_id ) ),
 		);
-		$location = trim( (string) AAB_Settings::get( 'location' ) );
 		if ( '' !== $location ) {
 			$event['location'] = $location;
 		}
@@ -278,7 +331,7 @@ final class AAB_Bookings {
 				),
 			);
 		}
-		if ( AAB_Settings::get( 'add_meet' ) ) {
+		if ( AAB_Types::wants_meet( $type ) ) {
 			$event['conferenceData'] = array(
 				'createRequest' => array(
 					'requestId'             => 'aab-' . $post_id . '-' . wp_generate_password( 8, false ),
@@ -330,6 +383,97 @@ final class AAB_Bookings {
 		do_action( 'aab_booking_confirmed', $booking );
 
 		return $booking;
+	}
+
+	/**
+	 * Move a booking to a new time (visitor self-service).
+	 *
+	 * Locks the new time, re-checks it live against Google (ignoring the booking's own
+	 * current slot), moves the Google event, then updates the record and emails both sides.
+	 *
+	 * @param int $id    Booking ID.
+	 * @param int $start New Unix start time.
+	 * @return array|WP_Error Updated booking.
+	 */
+	public static function reschedule( $id, $start ) {
+		$booking = self::get( $id );
+		if ( ! $booking ) {
+			return new WP_Error( 'aab_not_found', __( 'Booking not found.', 'anderson-appointment-booking' ), array( 'status' => 404 ) );
+		}
+		$ok = self::can_change( $booking );
+		if ( is_wp_error( $ok ) ) {
+			return $ok;
+		}
+		if ( (int) $start === $booking['start'] ) {
+			return new WP_Error( 'aab_same_time', __( 'That’s already your appointment time. Pick a different time.', 'anderson-appointment-booking' ), array( 'status' => 400 ) );
+		}
+		$limit = (int) AAB_Settings::get( 'max_reschedules' );
+		if ( $limit > 0 && $booking['reschedules'] >= $limit ) {
+			return new WP_Error( 'aab_too_many_moves', __( 'This appointment can’t be moved again online. Reply to your confirmation email to change it.', 'anderson-appointment-booking' ), array( 'status' => 403 ) );
+		}
+		$type = self::type_of( $booking );
+
+		if ( ! self::acquire_lock( $start ) ) {
+			return new WP_Error( 'aab_slot_taken', __( 'Someone else is booking that time right now. Pick another time.', 'anderson-appointment-booking' ), array( 'status' => 409 ) );
+		}
+		try {
+			$check = AAB_Availability::check_slot( $start, $type, $booking );
+			if ( is_wp_error( $check ) ) {
+				return $check;
+			}
+			$end = $start + (int) $type['duration'] * MINUTE_IN_SECONDS;
+			$tz  = self::google_timezone( wp_timezone_string() );
+
+			if ( '' !== $booking['event_id'] ) {
+				$moved = AAB_Google::patch_event(
+					$booking['calendar_id'],
+					$booking['event_id'],
+					array(
+						'start' => array(
+							'dateTime' => wp_date( 'c', $start ),
+							'timeZone' => $tz,
+						),
+						'end'   => array(
+							'dateTime' => wp_date( 'c', $end ),
+							'timeZone' => $tz,
+						),
+					),
+					(bool) AAB_Settings::get( 'invite_guest' )
+				);
+				if ( is_wp_error( $moved ) ) {
+					return new WP_Error( 'aab_google_failed', __( 'Your appointment could not be moved right now. Try again in a minute.', 'anderson-appointment-booking' ), array( 'status' => 502 ) );
+				}
+			}
+
+			$old = $booking['start'];
+			update_post_meta( $id, '_aab_start', $start );
+			update_post_meta( $id, '_aab_end', $end );
+			update_post_meta( $id, '_aab_date', wp_date( 'Y-m-d', $start ) );
+			update_post_meta( $id, '_aab_reschedules', $booking['reschedules'] + 1 );
+			delete_post_meta( $id, '_aab_reminded' );
+			wp_update_post(
+				array(
+					'ID'         => $id,
+					/* translators: 1: visitor name, 2: date and time */
+					'post_title' => sprintf( __( '%1$s, %2$s', 'anderson-appointment-booking' ), $booking['name'], self::format_time( $start ) ),
+				)
+			);
+			AAB_Availability::bust_cache();
+
+			$updated = self::get( $id );
+			self::email_rescheduled( $updated, $old, 'visitor' );
+
+			/**
+			 * Fires after a visitor moves their booking.
+			 *
+			 * @param array $booking   Updated booking.
+			 * @param int   $old_start Previous start time.
+			 */
+			do_action( 'aab_booking_rescheduled', $updated, $old );
+			return $updated;
+		} finally {
+			self::release_lock( $start );
+		}
 	}
 
 	/**
@@ -406,7 +550,7 @@ final class AAB_Bookings {
 	public static function cancel_url( $id, $token ) {
 		return add_query_arg(
 			array(
-				'aab_cancel' => (int) $id,
+				'aab_manage' => (int) $id,
 				'aab_token'  => rawurlencode( $token ),
 			),
 			home_url( '/' )
@@ -416,11 +560,12 @@ final class AAB_Bookings {
 	/**
 	 * Confirmed bookings overlapping a range (as busy intervals).
 	 *
-	 * @param int $from Unix start.
-	 * @param int $to   Unix end.
+	 * @param int $from    Unix start.
+	 * @param int $to      Unix end.
+	 * @param int $exclude Booking ID to leave out (one being moved).
 	 * @return array<int,array{0:int,1:int}>
 	 */
-	public static function busy_ranges( $from, $to ) {
+	public static function busy_ranges( $from, $to, $exclude = 0 ) {
 		$ids = get_posts(
 			array(
 				'post_type'      => self::POST_TYPE,
@@ -445,6 +590,9 @@ final class AAB_Bookings {
 		);
 		$out = array();
 		foreach ( $ids as $id ) {
+			if ( (int) $id === (int) $exclude ) {
+				continue;
+			}
 			$start = (int) get_post_meta( $id, '_aab_start', true );
 			$end   = (int) get_post_meta( $id, '_aab_end', true );
 			if ( $end > $from && $start < $to ) {
@@ -457,11 +605,12 @@ final class AAB_Bookings {
 	/**
 	 * Number of confirmed bookings per date.
 	 *
-	 * @param string $from First date (Y-m-d).
-	 * @param string $to   Last date (Y-m-d).
+	 * @param string $from    First date (Y-m-d).
+	 * @param string $to      Last date (Y-m-d).
+	 * @param int    $exclude Booking ID to leave out.
 	 * @return array<string,int>
 	 */
-	public static function counts_by_date( $from, $to ) {
+	public static function counts_by_date( $from, $to, $exclude = 0 ) {
 		$ids    = get_posts(
 			array(
 				'post_type'      => self::POST_TYPE,
@@ -485,6 +634,9 @@ final class AAB_Bookings {
 		);
 		$counts = array();
 		foreach ( $ids as $id ) {
+			if ( (int) $id === (int) $exclude ) {
+				continue;
+			}
 			$date            = (string) get_post_meta( $id, '_aab_date', true );
 			$counts[ $date ] = isset( $counts[ $date ] ) ? $counts[ $date ] + 1 : 1;
 		}
@@ -527,12 +679,13 @@ final class AAB_Bookings {
 	 * @param string $name Visitor name.
 	 * @return string
 	 */
-	private static function render_title( $name ) {
+	private static function render_title( $name, $type_name = '' ) {
 		$template = (string) AAB_Settings::get( 'event_title' );
 		return strtr(
 			'' !== trim( $template ) ? $template : 'Appointment with {name}',
 			array(
 				'{name}' => $name,
+				'{type}' => $type_name,
 				'{site}' => wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
 			)
 		);
@@ -559,19 +712,32 @@ final class AAB_Bookings {
 	 * @param string $name  Name.
 	 * @param string $email Email.
 	 * @param string $notes Notes.
-	 * @param string $phone Phone.
+	 * @param string $phone     Phone.
+	 * @param string $type_name Appointment type.
+	 * @param array  $answers   Answers to booking questions.
 	 * @return string
 	 */
-	private static function event_description( $name, $email, $notes, $phone = '' ) {
-		$lines = array(
+	private static function event_description( $name, $email, $notes, $phone = '', $type_name = '', array $answers = array() ) {
+		$lines = array();
+		if ( '' !== $type_name ) {
+			$lines[] = $type_name;
+			$lines[] = '';
+		}
+		$lines = array_merge(
+			$lines,
+			array(
 			/* translators: %s: visitor name */
 			sprintf( __( 'Name: %s', 'anderson-appointment-booking' ), $name ),
 			/* translators: %s: visitor email */
 			sprintf( __( 'Email: %s', 'anderson-appointment-booking' ), $email ),
+			)
 		);
 		if ( '' !== $phone ) {
 			/* translators: %s: visitor phone number */
 			$lines[] = sprintf( __( 'Phone: %s', 'anderson-appointment-booking' ), $phone );
+		}
+		foreach ( self::answer_lines( $answers ) as $line ) {
+			$lines[] = $line;
 		}
 		if ( '' !== $notes ) {
 			$lines[] = '';
@@ -581,6 +747,22 @@ final class AAB_Bookings {
 		/* translators: %s: site URL */
 		$lines[] = sprintf( __( 'Booked through %s', 'anderson-appointment-booking' ), home_url( '/' ) );
 		return implode( "\n", $lines );
+	}
+
+	/**
+	 * Answers as "Question: answer" lines.
+	 *
+	 * @param array $answers Answers.
+	 * @return string[]
+	 */
+	public static function answer_lines( array $answers ) {
+		$out = array();
+		foreach ( $answers as $a ) {
+			if ( is_array( $a ) && isset( $a['label'], $a['value'] ) && '' !== (string) $a['value'] ) {
+				$out[] = $a['label'] . ': ' . $a['value'];
+			}
+		}
+		return $out;
 	}
 
 	/**
@@ -610,24 +792,31 @@ final class AAB_Bookings {
 	 * @return string[]
 	 */
 	private static function details_lines( array $booking ) {
-		$lines = array(
+		$lines = array();
+		if ( '' !== $booking['type_name'] ) {
+			/* translators: %s: appointment type */
+			$lines[] = sprintf( __( 'What: %s', 'anderson-appointment-booking' ), $booking['type_name'] );
+		}
+		$lines = array_merge(
+			$lines,
+			array(
 			/* translators: 1: date and time, 2: timezone */
 			sprintf( __( 'When: %1$s (%2$s)', 'anderson-appointment-booking' ), self::format_time( $booking['start'] ), wp_timezone_string() ),
+			)
 		);
 		if ( '' !== $booking['meet_link'] ) {
 			/* translators: %s: video call link */
 			$lines[] = sprintf( __( 'Join the video call: %s', 'anderson-appointment-booking' ), $booking['meet_link'] );
 		}
-		$location = trim( (string) AAB_Settings::get( 'location' ) );
-		if ( '' !== $location ) {
+		if ( '' !== $booking['location'] ) {
 			/* translators: %s: location */
-			$lines[] = sprintf( __( 'Location: %s', 'anderson-appointment-booking' ), $location );
+			$lines[] = sprintf( __( 'Location: %s', 'anderson-appointment-booking' ), $booking['location'] );
 		}
-		$cancel = self::cancel_url_for( $booking );
-		if ( '' !== $cancel ) {
+		$manage = self::cancel_url_for( $booking );
+		if ( '' !== $manage ) {
 			$lines[] = '';
-			/* translators: %s: cancel link */
-			$lines[] = sprintf( __( 'Need to cancel? %s', 'anderson-appointment-booking' ), $cancel );
+			/* translators: %s: link to reschedule or cancel */
+			$lines[] = sprintf( __( 'Need to reschedule or cancel? %s', 'anderson-appointment-booking' ), $manage );
 		}
 		return $lines;
 	}
@@ -660,10 +849,10 @@ final class AAB_Bookings {
 			/* translators: %s: video call link */
 			$desc[] = sprintf( __( 'Join the video call: %s', 'anderson-appointment-booking' ), $booking['meet_link'] );
 		}
-		$cancel = self::cancel_url_for( $booking );
-		if ( '' !== $cancel ) {
-			/* translators: %s: cancel link */
-			$desc[] = sprintf( __( 'Need to cancel? %s', 'anderson-appointment-booking' ), $cancel );
+		$manage = self::cancel_url_for( $booking );
+		if ( '' !== $manage ) {
+			/* translators: %s: link to reschedule or cancel */
+			$desc[] = sprintf( __( 'Need to reschedule or cancel? %s', 'anderson-appointment-booking' ), $manage );
 		}
 		$host  = wp_parse_url( home_url(), PHP_URL_HOST );
 		$lines = array(
@@ -678,10 +867,10 @@ final class AAB_Bookings {
 			'DTSTART:' . gmdate( 'Ymd\THis\Z', $booking['start'] ),
 			'DTEND:' . gmdate( 'Ymd\THis\Z', $booking['end'] ),
 			/* translators: %s: site name */
-			'SUMMARY:' . $esc( sprintf( __( 'Appointment with %s', 'anderson-appointment-booking' ), self::site_name() ) ),
+			'SUMMARY:' . $esc( '' !== $booking['type_name'] ? $booking['type_name'] . ' – ' . self::site_name() : sprintf( __( 'Appointment with %s', 'anderson-appointment-booking' ), self::site_name() ) ),
 			'DESCRIPTION:' . $esc( implode( "\n", $desc ) ),
 		);
-		$location = trim( (string) AAB_Settings::get( 'location' ) );
+		$location = $booking['location'];
 		if ( '' !== $location || '' !== $booking['meet_link'] ) {
 			$lines[] = 'LOCATION:' . $esc( '' !== $location ? $location : $booking['meet_link'] );
 		}
@@ -762,19 +951,23 @@ final class AAB_Bookings {
 	}
 
 	/**
-	 * The time was changed in Google Calendar.
+	 * The appointment moved (by the visitor, or in Google Calendar).
 	 *
-	 * @param array $booking Booking (already updated).
-	 * @param int   $old     Previous start time.
+	 * @param array  $booking Booking (already updated).
+	 * @param int    $old     Previous start time.
+	 * @param string $by      'visitor' or 'calendar'.
 	 */
-	public static function email_rescheduled( array $booking, $old ) {
+	public static function email_rescheduled( array $booking, $old, $by = 'calendar' ) {
 		$lines = array_merge(
 			array(
 				/* translators: %s: visitor name */
 				sprintf( __( 'Hi %s,', 'anderson-appointment-booking' ), $booking['name'] ),
 				'',
-				/* translators: 1: site name, 2: old date and time */
-				sprintf( __( 'Your appointment with %1$s, previously %2$s, has moved.', 'anderson-appointment-booking' ), self::site_name(), self::format_time( $old ) ),
+				'visitor' === $by
+					/* translators: 1: old date and time */
+					? sprintf( __( 'Your appointment has been moved from %1$s to the new time below.', 'anderson-appointment-booking' ), self::format_time( $old ) )
+					/* translators: 1: site name, 2: old date and time */
+					: sprintf( __( 'Your appointment with %1$s, previously %2$s, has moved.', 'anderson-appointment-booking' ), self::site_name(), self::format_time( $old ) ),
 				'',
 			),
 			self::details_lines( $booking )
@@ -782,6 +975,24 @@ final class AAB_Bookings {
 		/* translators: 1: site name, 2: new date and time */
 		$subject = sprintf( __( '[%1$s] Appointment moved to %2$s', 'anderson-appointment-booking' ), self::site_name(), self::format_time( $booking['start'] ) );
 		self::mail_visitor( $booking, $subject, $lines, true );
+
+		$to = self::notify_email();
+		if ( 'visitor' === $by && '' !== $to ) {
+			$body = sprintf(
+				/* translators: 1: visitor name, 2: email, 3: old time, 4: new time */
+				__( "%1\$s (%2\$s) rescheduled their appointment.\n\nWas: %3\$s\nNow: %4\$s\n\nGoogle Calendar has been updated.", 'anderson-appointment-booking' ),
+				$booking['name'],
+				$booking['email'],
+				self::format_time( $old ),
+				self::format_time( $booking['start'] )
+			);
+			if ( '' !== $booking['event_link'] ) {
+				/* translators: %s: Google Calendar event link */
+				$body .= "\n" . sprintf( __( 'Open in Google Calendar: %s', 'anderson-appointment-booking' ), $booking['event_link'] );
+			}
+			/* translators: 1: site name, 2: visitor name */
+			wp_mail( $to, sprintf( __( '[%1$s] %2$s rescheduled', 'anderson-appointment-booking' ), self::site_name(), $booking['name'] ), $body, self::reply_to_header( $booking['email'] ) );
+		}
 	}
 
 	/**
@@ -797,6 +1008,7 @@ final class AAB_Bookings {
 		$lines = array(
 			/* translators: %s: date and time */
 			sprintf( __( 'New appointment: %s', 'anderson-appointment-booking' ), self::format_time( $booking['start'] ) ),
+			$booking['type_name'],
 			'',
 			/* translators: %s: name */
 			sprintf( __( 'Name: %s', 'anderson-appointment-booking' ), $booking['name'] ),
@@ -806,6 +1018,11 @@ final class AAB_Bookings {
 		if ( '' !== $booking['phone'] ) {
 			/* translators: %s: phone number */
 			$lines[] = sprintf( __( 'Phone: %s', 'anderson-appointment-booking' ), $booking['phone'] );
+		}
+		$answers = self::answer_lines( $booking['answers'] );
+		if ( $answers ) {
+			$lines[] = '';
+			$lines   = array_merge( $lines, $answers );
 		}
 		if ( '' !== $booking['notes'] ) {
 			$lines[] = '';
@@ -944,6 +1161,14 @@ final class AAB_Bookings {
 					array(
 						'name'  => __( 'Phone', 'anderson-appointment-booking' ),
 						'value' => $b['phone'],
+					),
+					array(
+						'name'  => __( 'Appointment type', 'anderson-appointment-booking' ),
+						'value' => $b['type_name'],
+					),
+					array(
+						'name'  => __( 'Answers', 'anderson-appointment-booking' ),
+						'value' => implode( "\n", self::answer_lines( $b['answers'] ) ),
 					),
 					array(
 						'name'  => __( 'Notes', 'anderson-appointment-booking' ),

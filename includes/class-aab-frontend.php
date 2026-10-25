@@ -26,7 +26,7 @@ final class AAB_Frontend {
 		add_shortcode( 'anderson_booking', array( __CLASS__, 'shortcode' ) );
 		add_action( 'init', array( __CLASS__, 'register_assets' ), 5 );
 		add_action( 'init', array( __CLASS__, 'register_block' ) );
-		add_action( 'template_redirect', array( __CLASS__, 'cancel_page' ) );
+		add_action( 'template_redirect', array( __CLASS__, 'manage_page' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'preview_page' ) );
 	}
 
@@ -94,6 +94,15 @@ final class AAB_Frontend {
 		$tokens   = AAB_Style::theme_tokens();
 		return array(
 			'config'   => self::config( array( 'heading' => '' ), true ),
+			'types'    => array_map(
+				static function ( $t ) {
+					return array(
+						'id'   => $t['id'],
+						'name' => $t['name'],
+					);
+				},
+				AAB_Types::all()
+			),
 			'vars'     => $resolved['vars'],
 			'classes'  => $resolved['classes'],
 			'radii'    => AAB_Style::radii(),
@@ -112,7 +121,10 @@ final class AAB_Frontend {
 	 * @return string
 	 */
 	public static function render_block( $attributes ) {
-		$atts = array( 'heading' => isset( $attributes['heading'] ) ? (string) $attributes['heading'] : '' );
+		$atts = array(
+			'heading' => isset( $attributes['heading'] ) ? (string) $attributes['heading'] : '',
+			'type'    => isset( $attributes['type'] ) ? (string) $attributes['type'] : '',
+		);
 		foreach ( array_keys( self::style_attributes() ) as $key ) {
 			$atts[ $key ] = isset( $attributes[ $key ] ) ? (string) $attributes[ $key ] : '';
 		}
@@ -130,6 +142,7 @@ final class AAB_Frontend {
 	 *
 	 * Style attributes are optional and override Appointments → Settings → Appearance:
 	 * [anderson_booking heading="Book a call" accent="#0b5fff" buttons="plugin" radius="round" density="compact" background="#ffffff" headings="inherit"]
+	 * Show one appointment type only with type="its-id" (IDs are listed under Appointments → Appointment types).
 	 *
 	 * @param array|string $atts Attributes.
 	 * @return string
@@ -138,6 +151,7 @@ final class AAB_Frontend {
 		$atts = shortcode_atts(
 			array(
 				'heading'    => '',
+				'type'       => '',
 				'accent'     => '',
 				'background' => '',
 				'buttons'    => '',
@@ -159,6 +173,21 @@ final class AAB_Frontend {
 	 * @return array
 	 */
 	private static function config( array $atts, $demo = false ) {
+		$types = AAB_Types::public_list();
+		$only  = isset( $atts['type'] ) ? sanitize_key( (string) $atts['type'] ) : '';
+		if ( '' !== $only ) {
+			$match = array_values(
+				array_filter(
+					$types,
+					static function ( $t ) use ( $only ) {
+						return $t['id'] === $only;
+					}
+				)
+			);
+			// An unknown or hidden type falls back to showing all types rather than an empty widget.
+			$types = $match ? $match : $types;
+		}
+		$first = $types ? $types[0] : null;
 		return array(
 			'rest'      => esc_url_raw( rest_url( AAB_Rest::NS . '/' ) ),
 			'locale'    => str_replace( '_', '-', determine_locale() ),
@@ -166,7 +195,8 @@ final class AAB_Frontend {
 			'consent'   => (string) AAB_Settings::get( 'consent_text' ),
 			'phone'     => (string) AAB_Settings::get( 'phone_field' ),
 			'heading'   => isset( $atts['heading'] ) ? (string) $atts['heading'] : '',
-			'duration'  => (int) AAB_Settings::get( 'duration' ),
+			'types'     => $types,
+			'duration'  => $first ? $first['duration'] : (int) AAB_Settings::get( 'duration' ),
 			'message'   => (string) AAB_Settings::get( 'confirmation_message' ),
 			'demo'      => (bool) $demo,
 			'i18n'      => self::strings(),
@@ -177,10 +207,11 @@ final class AAB_Frontend {
 	 * Widget markup. The script builds the calendar inside it; without JavaScript a short message shows.
 	 *
 	 * @param array $atts Attributes: heading, plus optional style overrides (accent, background, buttons, radius, density, headings).
-	 * @param bool  $demo Render with sample times (used by the settings preview).
+	 * @param bool  $demo  Render with sample times (used by the settings preview).
+	 * @param array $extra Extra script configuration (e.g. rescheduling).
 	 * @return string
 	 */
-	public static function render( array $atts, $demo = false ) {
+	public static function render( array $atts, $demo = false, array $extra = array() ) {
 		++self::$instance;
 
 		/**
@@ -217,7 +248,7 @@ final class AAB_Frontend {
 			esc_attr( implode( ' ', array_merge( array( 'aab' ), $style['classes'] ) ) ),
 			self::$instance,
 			esc_attr( AAB_Style::inline( $style['vars'] ) ),
-			esc_attr( wp_json_encode( self::config( $atts, $demo ) ) ),
+			esc_attr( wp_json_encode( array_merge( self::config( $atts, $demo ), $extra ) ) ),
 			esc_html__( 'Turn on JavaScript to book an appointment.', 'anderson-appointment-booking' )
 		);
 	}
@@ -328,54 +359,112 @@ window.addEventListener( 'message', function ( e ) {
 			'error'        => __( 'Something went wrong. Check your connection and try again.', 'anderson-appointment-booking' ),
 			'retry'        => __( 'Try again', 'anderson-appointment-booking' ),
 			'website'      => __( 'Leave this field empty', 'anderson-appointment-booking' ),
+			'pickType'     => __( 'What would you like to book?', 'anderson-appointment-booking' ),
+			'allTypes'     => __( 'All appointment types', 'anderson-appointment-booking' ),
+			'video'        => __( 'Video call', 'anderson-appointment-booking' ),
+			'needAnswer'   => __( 'Answer this question.', 'anderson-appointment-booking' ),
+			'needChoice'   => __( 'Choose one of the options.', 'anderson-appointment-booking' ),
+			'optional'     => __( '(optional)', 'anderson-appointment-booking' ),
+			'choose'       => __( 'Choose…', 'anderson-appointment-booking' ),
+			'currentTime'  => __( 'Your current time', 'anderson-appointment-booking' ),
+			/* translators: %s: new appointment time */
+			'moveTo'       => __( 'Move to %s', 'anderson-appointment-booking' ),
+			'moving'       => __( 'Moving…', 'anderson-appointment-booking' ),
+			'moved'        => __( 'Moved', 'anderson-appointment-booking' ),
+			'movedText'    => __( 'Your appointment has a new time. A confirmation is on its way to your inbox.', 'anderson-appointment-booking' ),
+			'backToBooking' => __( 'Back to your appointment', 'anderson-appointment-booking' ),
 		);
 	}
 
 	/**
-	 * Visitor cancel page: ?aab_cancel=ID&aab_token=TOKEN.
+	 * Visitor manage page: ?aab_manage=ID&aab_token=TOKEN (older emails used ?aab_cancel=).
 	 *
-	 * GET shows a confirmation button (so link scanners in mail apps can't cancel); POST cancels.
+	 * Shows the appointment with Reschedule and Cancel. Cancelling is a POST behind a
+	 * confirmation button, so link scanners in mail apps can't cancel by visiting the link.
+	 * The page loads the theme's head so it looks like the rest of the site.
 	 */
-	public static function cancel_page() {
+	public static function manage_page() {
 		// phpcs:disable WordPress.Security.NonceVerification -- the emailed token authenticates the visitor.
-		if ( ! isset( $_GET['aab_cancel'], $_GET['aab_token'] ) ) {
+		$id_raw = isset( $_GET['aab_manage'] ) ? $_GET['aab_manage'] : ( isset( $_GET['aab_cancel'] ) ? $_GET['aab_cancel'] : null ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- absint below.
+		if ( null === $id_raw || ! isset( $_GET['aab_token'] ) ) {
 			return;
 		}
-		$id      = absint( $_GET['aab_cancel'] );
+		$id      = absint( $id_raw );
 		$token   = sanitize_text_field( wp_unslash( $_GET['aab_token'] ) );
-		$booking = AAB_Bookings::get( $id );
-		$valid   = $booking && AAB_Bookings::verify_token( $id, $token );
+		$view    = isset( $_GET['aab_do'] ) ? sanitize_key( $_GET['aab_do'] ) : ( isset( $_GET['aab_cancel'] ) ? 'cancel' : '' );
 		$posted  = isset( $_SERVER['REQUEST_METHOD'] ) && 'POST' === $_SERVER['REQUEST_METHOD'] && isset( $_POST['aab_confirm_cancel'] );
 		// phpcs:enable
+		$booking = AAB_Bookings::get( $id );
+		$valid   = $booking && AAB_Bookings::verify_token( $id, $token );
 
 		nocache_headers();
 		header( 'X-Robots-Tag: noindex, nofollow', true );
 
-		$title = __( 'Cancel appointment', 'anderson-appointment-booking' );
-		$body  = '';
+		$base   = add_query_arg(
+			array(
+				'aab_manage' => $id,
+				'aab_token'  => rawurlencode( $token ),
+			),
+			home_url( '/' )
+		);
+		$themed = 'theme' === AAB_Settings::get( 'style_buttons' ) && 'theme.json' === AAB_Style::theme_tokens()['source'] ? ' wp-element-button' : '';
+		$title  = __( 'Your appointment', 'anderson-appointment-booking' );
+		$body   = '';
+		$wide   = false;
 
-		if ( $booking && 'cancelled' === $booking['status'] ) {
-			$body = '<p>' . esc_html__( 'This appointment is already cancelled.', 'anderson-appointment-booking' ) . '</p>';
+		if ( $booking && 'cancelled' === $booking['status'] && $valid ) {
+			$body = '<p>' . esc_html__( 'This appointment is cancelled.', 'anderson-appointment-booking' ) . '</p>';
 		} elseif ( ! $valid ) {
-			$body = '<p>' . esc_html__( 'This cancel link is not valid. Reply to your confirmation email and we’ll sort it out.', 'anderson-appointment-booking' ) . '</p>';
-		} elseif ( $booking['start'] <= time() ) {
-			$body = '<p>' . esc_html__( 'This appointment has already started, so it can’t be cancelled online.', 'anderson-appointment-booking' ) . '</p>';
-		} elseif ( $posted ) {
-			$result = AAB_Bookings::cancel( $id, 'visitor' );
-			if ( is_wp_error( $result ) ) {
-				$body = '<p>' . esc_html__( 'The appointment could not be cancelled right now. Try again in a few minutes, or reply to your confirmation email.', 'anderson-appointment-booking' ) . '</p>';
-			} else {
-				$title = __( 'Appointment cancelled', 'anderson-appointment-booking' );
-				/* translators: %s: date and time */
-				$body = '<p>' . esc_html( sprintf( __( 'Your appointment on %s is cancelled. You’ll get an email confirming it.', 'anderson-appointment-booking' ), AAB_Bookings::format_time( $booking['start'] ) ) ) . '</p>'
-					. '<p><a class="aab-cancel__home" href="' . esc_url( home_url( '/' ) ) . '">' . esc_html__( 'Back to the site', 'anderson-appointment-booking' ) . '</a></p>';
-			}
+			// Cancelled bookings drop their token, so an old link lands here too.
+			$body = '<p>' . esc_html__( 'This link is no longer valid. If you cancelled, nothing else is needed. Otherwise reply to your confirmation email and we’ll sort it out.', 'anderson-appointment-booking' ) . '</p>';
 		} else {
-			/* translators: 1: name, 2: date and time */
-			$body = '<p>' . esc_html( sprintf( __( '%1$s, your appointment is on %2$s.', 'anderson-appointment-booking' ), $booking['name'], AAB_Bookings::format_time( $booking['start'] ) ) ) . '</p>'
-				. '<form method="post"><input type="hidden" name="aab_confirm_cancel" value="1">'
-				. '<button type="submit" class="aab-cancel__button' . ( 'theme' === AAB_Settings::get( 'style_buttons' ) && 'theme.json' === AAB_Style::theme_tokens()['source'] ? ' wp-element-button' : '' ) . '">' . esc_html__( 'Cancel appointment', 'anderson-appointment-booking' ) . '</button></form>'
-				. '<p class="aab-cancel__keep"><a href="' . esc_url( home_url( '/' ) ) . '">' . esc_html__( 'Keep it and go back to the site', 'anderson-appointment-booking' ) . '</a></p>';
+			$can = AAB_Bookings::can_change( $booking );
+			if ( is_wp_error( $can ) ) {
+				$body = self::summary_html( $booking ) . '<p>' . esc_html( $can->get_error_message() ) . '</p>';
+			} elseif ( $posted ) {
+				$result = AAB_Bookings::cancel( $id, 'visitor' );
+				if ( is_wp_error( $result ) ) {
+					$body = '<p>' . esc_html__( 'The appointment could not be cancelled right now. Try again in a few minutes, or reply to your confirmation email.', 'anderson-appointment-booking' ) . '</p>';
+				} else {
+					$title = __( 'Appointment cancelled', 'anderson-appointment-booking' );
+					/* translators: %s: date and time */
+					$body = '<p>' . esc_html( sprintf( __( 'Your appointment on %s is cancelled. You’ll get an email confirming it.', 'anderson-appointment-booking' ), AAB_Bookings::format_time( $booking['start'] ) ) ) . '</p>'
+						. '<p><a class="aab-cancel__home" href="' . esc_url( home_url( '/' ) ) . '">' . esc_html__( 'Back to the site', 'anderson-appointment-booking' ) . '</a></p>';
+				}
+			} elseif ( 'cancel' === $view ) {
+				$title = __( 'Cancel appointment', 'anderson-appointment-booking' );
+				$body  = self::summary_html( $booking )
+					. '<form method="post" action="' . esc_url( add_query_arg( 'aab_do', 'cancel', $base ) ) . '"><input type="hidden" name="aab_confirm_cancel" value="1">'
+					. '<button type="submit" class="aab-cancel__button' . $themed . '">' . esc_html__( 'Yes, cancel it', 'anderson-appointment-booking' ) . '</button></form>'
+					. '<p class="aab-cancel__keep"><a href="' . esc_url( $base ) . '">' . esc_html__( 'Keep it', 'anderson-appointment-booking' ) . '</a></p>';
+			} elseif ( 'reschedule' === $view ) {
+				$title = __( 'Pick a new time', 'anderson-appointment-booking' );
+				$wide  = true;
+				$type  = AAB_Bookings::type_of( $booking );
+				$body  = self::summary_html( $booking, true )
+					. self::render(
+						array( 'heading' => '' ),
+						false,
+						array(
+							'types'      => array( AAB_Types::public_type( $type ) ),
+							'duration'   => (int) $type['duration'],
+							'reschedule' => array(
+								'id'     => $id,
+								'token'  => $token,
+								'start'  => $booking['start'],
+								'manage' => $base,
+							),
+						)
+					)
+					. '<p class="aab-cancel__keep"><a href="' . esc_url( $base ) . '">' . esc_html__( 'Keep the current time', 'anderson-appointment-booking' ) . '</a></p>';
+			} else {
+				$limit = (int) AAB_Settings::get( 'max_reschedules' );
+				$body  = self::summary_html( $booking ) . '<div class="aab-manage__actions">';
+				if ( ! $limit || $booking['reschedules'] < $limit ) {
+					$body .= '<a class="aab-cancel__button aab-manage__primary' . $themed . '" href="' . esc_url( add_query_arg( 'aab_do', 'reschedule', $base ) ) . '">' . esc_html__( 'Reschedule', 'anderson-appointment-booking' ) . '</a>';
+				}
+				$body .= '<a class="aab-manage__secondary" href="' . esc_url( add_query_arg( 'aab_do', 'cancel', $base ) ) . '">' . esc_html__( 'Cancel appointment', 'anderson-appointment-booking' ) . '</a></div>';
+			}
 		}
 
 		$style = AAB_Style::resolve();
@@ -383,6 +472,7 @@ window.addEventListener( 'message', function ( e ) {
 		show_admin_bar( false );
 		add_filter( 'wp_robots', 'wp_robots_no_robots' );
 		status_header( 200 );
+		$classes = array_merge( array( 'aab', 'aab-cancel', 'aab-manage' ), $wide ? array( 'aab-manage--wide' ) : array(), $style['classes'] );
 		?>
 <!doctype html>
 <html <?php language_attributes(); ?>>
@@ -393,7 +483,7 @@ window.addEventListener( 'message', function ( e ) {
 <style>html { margin-top: 0 !important; }</style>
 </head>
 <body <?php body_class( 'aab-cancel-page' ); ?>>
-<main class="<?php echo esc_attr( implode( ' ', array_merge( array( 'aab', 'aab-cancel' ), $style['classes'] ) ) ); ?>" style="<?php echo esc_attr( AAB_Style::inline( $style['vars'] ) ); ?>">
+<main class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>" style="<?php echo esc_attr( AAB_Style::inline( $style['vars'] ) ); ?>">
 <p class="aab-cancel__site"><?php echo esc_html( wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ); ?></p>
 <h1><?php echo esc_html( $title ); ?></h1>
 		<?php echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every dynamic part of $body is escaped where it is built above. ?>
@@ -403,5 +493,36 @@ window.addEventListener( 'message', function ( e ) {
 </html>
 		<?php
 		exit;
+	}
+
+	/**
+	 * The appointment summary block on the manage page.
+	 *
+	 * @param array $booking Booking.
+	 * @param bool  $compact One line ("Currently: …").
+	 * @return string
+	 */
+	private static function summary_html( array $booking, $compact = false ) {
+		$when = AAB_Bookings::format_time( $booking['start'] ) . ' – ' . wp_date( get_option( 'time_format' ), $booking['end'] );
+		if ( $compact ) {
+			/* translators: %s: current date and time */
+			return '<p class="aab-manage__current">' . esc_html( sprintf( __( 'Currently: %s', 'anderson-appointment-booking' ), $when ) ) . '</p>';
+		}
+		$rows = array();
+		if ( '' !== $booking['type_name'] ) {
+			$rows[ __( 'What', 'anderson-appointment-booking' ) ] = $booking['type_name'];
+		}
+		$rows[ __( 'When', 'anderson-appointment-booking' ) ] = $when . ' (' . wp_timezone_string() . ')';
+		if ( '' !== $booking['location'] ) {
+			$rows[ __( 'Where', 'anderson-appointment-booking' ) ] = $booking['location'];
+		}
+		$html = '<dl class="aab-manage__details">';
+		foreach ( $rows as $label => $value ) {
+			$html .= '<dt>' . esc_html( $label ) . '</dt><dd>' . esc_html( $value ) . '</dd>';
+		}
+		if ( '' !== $booking['meet_link'] && 'confirmed' === $booking['status'] ) {
+			$html .= '<dt>' . esc_html__( 'Video call', 'anderson-appointment-booking' ) . '</dt><dd><a href="' . esc_url( $booking['meet_link'] ) . '" rel="noopener">' . esc_html( $booking['meet_link'] ) . '</a></dd>';
+		}
+		return $html . '</dl>';
 	}
 }

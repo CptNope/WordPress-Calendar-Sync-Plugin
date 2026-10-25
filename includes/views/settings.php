@@ -218,6 +218,15 @@ $aab_has_secret = $secret_locked || '' !== AAB_Settings::client_secret();
 			<p class="description">
 				<?php
 				printf(
+					/* translators: %s: link to the appointment types screen */
+					esc_html__( 'Appointment length, start times and booking questions are set per %s. Types use these hours unless you give them their own.', 'anderson-appointment-booking' ),
+					'<a href="' . esc_url( AAB_Admin_Types::url() ) . '">' . esc_html__( 'appointment type', 'anderson-appointment-booking' ) . '</a>'
+				);
+				?>
+			</p>
+			<p class="description">
+				<?php
+				printf(
 					/* translators: %s: timezone name */
 					esc_html__( 'Hours use 24-hour time in your site timezone (%s). Separate breaks with commas, e.g. 09:00-12:00, 13:00-17:00. Leave a day empty to close it.', 'anderson-appointment-booking' ),
 					'<strong>' . esc_html( wp_timezone_string() ) . '</strong>'
@@ -236,14 +245,14 @@ $aab_has_secret = $secret_locked || '' !== AAB_Settings::client_secret();
 			<table class="form-table" role="presentation">
 				<?php
 				$aab_numbers = array(
-					'duration'      => array( __( 'Appointment length', 'anderson-appointment-booking' ), __( 'minutes', 'anderson-appointment-booking' ), '' ),
-					'interval'      => array( __( 'Start times every', 'anderson-appointment-booking' ), __( 'minutes', 'anderson-appointment-booking' ), __( 'E.g. 30 offers 9:00, 9:30, 10:00…', 'anderson-appointment-booking' ) ),
 					'buffer_before' => array( __( 'Free time before', 'anderson-appointment-booking' ), __( 'minutes', 'anderson-appointment-booking' ), __( 'Keeps this much time clear before each appointment.', 'anderson-appointment-booking' ) ),
 					'buffer_after'  => array( __( 'Free time after', 'anderson-appointment-booking' ), __( 'minutes', 'anderson-appointment-booking' ), '' ),
 					'min_notice'    => array( __( 'Minimum notice', 'anderson-appointment-booking' ), __( 'hours', 'anderson-appointment-booking' ), __( 'No bookings sooner than this from now.', 'anderson-appointment-booking' ) ),
 					'max_days'      => array( __( 'Book up to', 'anderson-appointment-booking' ), __( 'days ahead', 'anderson-appointment-booking' ), '' ),
 					'daily_limit'   => array( __( 'Most bookings per day', 'anderson-appointment-booking' ), '', __( '0 means no limit.', 'anderson-appointment-booking' ) ),
 					'max_per_email' => array( __( 'Upcoming bookings per person', 'anderson-appointment-booking' ), '', __( 'How many future appointments one email address can hold at once. 0 means no limit.', 'anderson-appointment-booking' ) ),
+					'change_cutoff' => array( __( 'Changes allowed until', 'anderson-appointment-booking' ), __( 'hours before', 'anderson-appointment-booking' ), __( 'Visitors can reschedule or cancel online until this long before the appointment. 0 means any time before it starts.', 'anderson-appointment-booking' ) ),
+					'max_reschedules' => array( __( 'Reschedules per booking', 'anderson-appointment-booking' ), '', __( 'How many times a visitor can move one appointment online. 0 means no limit.', 'anderson-appointment-booking' ) ),
 				);
 				foreach ( $aab_numbers as $aab_key => $aab_meta ) :
 					?>
@@ -275,7 +284,7 @@ $aab_has_secret = $secret_locked || '' !== AAB_Settings::client_secret();
 					<th scope="row"><label for="aab-event-title"><?php esc_html_e( 'Calendar event title', 'anderson-appointment-booking' ); ?></label></th>
 					<td>
 						<input type="text" id="aab-event-title" name="aab[event_title]" value="<?php echo esc_attr( $s['event_title'] ); ?>" class="regular-text">
-						<p class="description"><?php esc_html_e( '{name} is replaced with the visitor’s name, {site} with your site name.', 'anderson-appointment-booking' ); ?></p>
+						<p class="description"><?php esc_html_e( '{name} is replaced with the visitor’s name, {type} with the appointment type, {site} with your site name.', 'anderson-appointment-booking' ); ?></p>
 					</td>
 				</tr>
 				<tr>

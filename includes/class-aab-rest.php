@@ -28,6 +28,7 @@ final class AAB_Rest {
 	 * Register routes.
 	 */
 	public static function routes() {
+		self::reschedule_route();
 		register_rest_route(
 			self::NS,
 			'/availability',
@@ -40,9 +41,21 @@ final class AAB_Rest {
 						'type'     => 'string',
 						'required' => true,
 					),
-					'to'   => array(
+					'to'      => array(
 						'type'     => 'string',
 						'required' => true,
+					),
+					'type'    => array(
+						'type'    => 'string',
+						'default' => '',
+					),
+					'booking' => array(
+						'type'    => 'integer',
+						'default' => 0,
+					),
+					'token'   => array(
+						'type'    => 'string',
+						'default' => '',
 					),
 				),
 			)
@@ -75,6 +88,14 @@ final class AAB_Rest {
 						'type'    => 'string',
 						'default' => '',
 					),
+					'type'    => array(
+						'type'    => 'string',
+						'default' => '',
+					),
+					'answers' => array(
+						'type'    => 'object',
+						'default' => array(),
+					),
 					'consent' => array(
 						'type'    => 'boolean',
 						'default' => false,
@@ -88,6 +109,98 @@ final class AAB_Rest {
 						'default' => 0,
 					),
 				),
+			)
+		);
+	}
+
+	/**
+	 * Register the reschedule route (called from routes()).
+	 */
+	private static function reschedule_route() {
+		register_rest_route(
+			self::NS,
+			'/bookings/(?P<id>\d+)/reschedule',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'reschedule' ),
+				// The emailed token authenticates the visitor; it's checked in the callback.
+				'permission_callback' => '__return_true',
+				'args'                => array(
+					'start' => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+					'token' => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * The appointment type a request asks for (an active one, or the first active one).
+	 *
+	 * @param string $id Requested type ID.
+	 * @return array|WP_Error
+	 */
+	private static function requested_type( $id ) {
+		$id = sanitize_key( (string) $id );
+		if ( '' === $id ) {
+			$type = AAB_Types::first();
+		} else {
+			$type = AAB_Types::get( $id );
+			$type = $type && $type['active'] ? $type : null;
+		}
+		return $type ? $type : new WP_Error( 'aab_bad_type', __( 'That appointment type isn’t available. Reload the page and pick another.', 'anderson-appointment-booking' ), array( 'status' => 404 ) );
+	}
+
+	/**
+	 * A booking the request may change, checked against its emailed token.
+	 *
+	 * @param int    $id    Booking ID.
+	 * @param string $token Token.
+	 * @return array|WP_Error
+	 */
+	private static function owned_booking( $id, $token ) {
+		$booking = AAB_Bookings::get( (int) $id );
+		if ( ! $booking || ! AAB_Bookings::verify_token( (int) $id, (string) $token ) ) {
+			return new WP_Error( 'aab_bad_link', __( 'This link is no longer valid. Reply to your confirmation email and we’ll sort it out.', 'anderson-appointment-booking' ), array( 'status' => 403 ) );
+		}
+		return $booking;
+	}
+
+	/**
+	 * Move a booking to a new time.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function reschedule( WP_REST_Request $request ) {
+		if ( self::rate_limited( 'move', 10, HOUR_IN_SECONDS, true ) ) {
+			return new WP_Error( 'aab_rate', __( 'Too many attempts. Wait a few minutes and try again.', 'anderson-appointment-booking' ), array( 'status' => 429 ) );
+		}
+		$booking = self::owned_booking( (int) $request['id'], (string) $request['token'] );
+		if ( is_wp_error( $booking ) ) {
+			return $booking;
+		}
+		if ( ! AAB_Google::is_connected() ) {
+			return self::unavailable();
+		}
+		$moved = AAB_Bookings::reschedule( $booking['id'], (int) $request['start'] );
+		if ( is_wp_error( $moved ) ) {
+			$code = $moved->get_error_code();
+			if ( in_array( $code, array( 'aab_slot_taken', 'aab_google_failed', 'aab_too_late', 'aab_same_time', 'aab_not_confirmed', 'aab_too_many_moves' ), true ) ) {
+				return $moved;
+			}
+			return self::unavailable();
+		}
+		return rest_ensure_response(
+			array(
+				'start' => $moved['start'],
+				'end'   => $moved['end'],
+				'meet'  => $moved['meet_link'],
 			)
 		);
 	}
@@ -124,7 +237,22 @@ final class AAB_Rest {
 			return self::unavailable();
 		}
 
-		$slots = AAB_Availability::slots( $from, $to );
+		$exclude = null;
+		if ( (int) $request['booking'] > 0 ) {
+			// Rescheduling: show times as if this booking weren't there, using its own type.
+			$exclude = self::owned_booking( (int) $request['booking'], (string) $request['token'] );
+			if ( is_wp_error( $exclude ) ) {
+				return $exclude;
+			}
+			$type = AAB_Bookings::type_of( $exclude );
+		} else {
+			$type = self::requested_type( (string) $request['type'] );
+			if ( is_wp_error( $type ) ) {
+				return $type;
+			}
+		}
+
+		$slots = AAB_Availability::slots( $from, $to, false, $type, $exclude );
 		if ( is_wp_error( $slots ) ) {
 			return self::unavailable();
 		}
@@ -133,7 +261,8 @@ final class AAB_Rest {
 		$response             = rest_ensure_response(
 			array(
 				'timezone' => wp_timezone_string(),
-				'duration' => (int) AAB_Settings::get( 'duration' ),
+				'type'     => $type['id'],
+				'duration' => (int) $type['duration'],
 				'first'    => $first,
 				'last'     => $last,
 				'days'     => (object) $slots,
@@ -165,6 +294,14 @@ final class AAB_Rest {
 		$phone = sanitize_text_field( (string) $request['phone'] );
 		$start = (int) $request['start'];
 		$ask   = (string) AAB_Settings::get( 'phone_field' );
+		$type  = self::requested_type( (string) $request['type'] );
+		if ( is_wp_error( $type ) ) {
+			return $type;
+		}
+		if ( empty( $type['notes'] ) ) {
+			$notes = '';
+		}
+		$checked = AAB_Types::check_answers( $type, $request['answers'] );
 
 		$errors = array();
 		if ( '' === $name || mb_strlen( $name ) > 100 ) {
@@ -186,6 +323,7 @@ final class AAB_Rest {
 		if ( '' !== trim( (string) AAB_Settings::get( 'consent_text' ) ) && ! $request['consent'] ) {
 			$errors['consent'] = __( 'Check the box to continue.', 'anderson-appointment-booking' );
 		}
+		$errors = array_merge( $errors, $checked['errors'] );
 		if ( $errors ) {
 			return new WP_Error( 'aab_invalid', __( 'Check the highlighted fields.', 'anderson-appointment-booking' ), array( 'status' => 400, 'fields' => $errors ) );
 		}
@@ -209,11 +347,13 @@ final class AAB_Rest {
 		$booking = AAB_Bookings::create(
 			$start,
 			array(
-				'name'  => $name,
-				'email' => $email,
-				'notes' => $notes,
-				'phone' => $phone,
-			)
+				'name'    => $name,
+				'email'   => $email,
+				'notes'   => $notes,
+				'phone'   => $phone,
+				'answers' => $checked['answers'],
+			),
+			$type
 		);
 		if ( is_wp_error( $booking ) ) {
 			$data   = $booking->get_error_data();
@@ -234,6 +374,7 @@ final class AAB_Rest {
 				'start'   => $booking['start'],
 				'end'     => $booking['end'],
 				'meet'    => $booking['meet_link'],
+				'type'    => $booking['type'],
 				'message' => (string) AAB_Settings::get( 'confirmation_message' ),
 			)
 		);

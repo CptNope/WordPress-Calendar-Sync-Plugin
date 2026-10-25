@@ -239,6 +239,8 @@ final class AAB_Admin {
 		$new['max_days']      = $int( 'max_days', 1, 365 );
 		$new['daily_limit']   = $int( 'daily_limit', 0, 100 );
 		$new['max_per_email'] = $int( 'max_per_email', 0, 50 );
+		$new['change_cutoff'] = $int( 'change_cutoff', 0, 720 );
+		$new['max_reschedules'] = $int( 'max_reschedules', 0, 20 );
 		$new['reminder_hours'] = $int( 'reminder_hours', 0, 168 );
 		$new['retention_days'] = $int( 'retention_days', 0, 3650 );
 
@@ -411,7 +413,7 @@ final class AAB_Admin {
 			return preg_match( '/^[=+\-@\t\r]/', $value ) ? "'" . $value : $value;
 		};
 		fwrite( $out, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- UTF-8 BOM for Excel.
-		fputcsv( $out, array( 'Start', 'End', 'Timezone', 'Name', 'Email', 'Phone', 'Notes', 'Status', 'Booked', 'Google Calendar event' ), ',', '"', '' );
+		fputcsv( $out, array( 'Start', 'End', 'Timezone', 'Type', 'Name', 'Email', 'Phone', 'Answers', 'Notes', 'Status', 'Booked', 'Google Calendar event' ), ',', '"', '' );
 		foreach ( $ids as $id ) {
 			$b = AAB_Bookings::get( $id );
 			if ( ! $b ) {
@@ -425,9 +427,11 @@ final class AAB_Admin {
 						wp_date( 'Y-m-d H:i', $b['start'] ),
 						wp_date( 'Y-m-d H:i', $b['end'] ),
 						wp_timezone_string(),
+						$b['type_name'],
 						$b['name'],
 						$b['email'],
 						$b['phone'],
+						implode( "\n", AAB_Bookings::answer_lines( $b['answers'] ) ),
 						$b['notes'],
 						$b['status'],
 						get_post_time( 'Y-m-d H:i', false, $id ),
@@ -482,6 +486,7 @@ final class AAB_Admin {
 			'cb'          => isset( $columns['cb'] ) ? $columns['cb'] : '',
 			'title'       => __( 'Booking', 'anderson-appointment-booking' ),
 			'aab_when'    => __( 'When', 'anderson-appointment-booking' ),
+			'aab_type'    => __( 'Type', 'anderson-appointment-booking' ),
 			'aab_email'   => __( 'Email', 'anderson-appointment-booking' ),
 			'aab_status'  => __( 'Status', 'anderson-appointment-booking' ),
 			'aab_links'   => __( 'Links', 'anderson-appointment-booking' ),
@@ -500,6 +505,9 @@ final class AAB_Admin {
 			return;
 		}
 		switch ( $column ) {
+			case 'aab_type':
+				echo esc_html( $b['type_name'] );
+				break;
 			case 'aab_when':
 				echo esc_html( AAB_Bookings::format_time( $b['start'] ) );
 				break;
@@ -588,6 +596,8 @@ final class AAB_Admin {
 					__( 'Email', 'anderson-appointment-booking' )  => $b['email'],
 					__( 'Phone', 'anderson-appointment-booking' )  => $b['phone'],
 					__( 'Status', 'anderson-appointment-booking' ) => $b['status'],
+					__( 'Type', 'anderson-appointment-booking' )   => $b['type_name'],
+					__( 'Answers', 'anderson-appointment-booking' ) => implode( "\n", AAB_Bookings::answer_lines( $b['answers'] ) ),
 					__( 'Notes', 'anderson-appointment-booking' )  => $b['notes'],
 				);
 				foreach ( $rows as $label => $value ) {

@@ -63,6 +63,10 @@
 		this.view = 'times';
 		this.notice = '';
 		this.autoAdvance = 2;
+		this.types = this.cfg.types || [];
+		this.moving = this.cfg.reschedule || null;
+		// One type (or a pinned one): skip straight to the calendar.
+		this.type = this.types.length === 1 ? this.types[ 0 ] : null;
 
 		try {
 			this.userTz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
@@ -81,7 +85,11 @@
 
 		this.probeTheme();
 		this.build();
-		this.load();
+		if ( this.type || ! this.types.length ) {
+			this.load();
+		} else {
+			this.showPicker();
+		}
 	}
 
 	function parseColor( value ) {
@@ -226,9 +234,13 @@
 		} } );
 		this.panel = h( 'div', { class: 'aab__panel', 'aria-live': 'polite' } );
 		this.tzNote = h( 'p', { class: 'aab__tz' } );
+		this.picker = h( 'div', { class: 'aab__types', role: 'list', hidden: true } );
+		this.typeBar = h( 'div', { class: 'aab__typebar', hidden: true } );
 
+		this.root.appendChild( this.picker );
+		this.root.appendChild( this.typeBar );
 		this.root.appendChild(
-			h( 'div', { class: 'aab__body' }, [
+			this.body = h( 'div', { class: 'aab__body' }, [
 				h( 'div', { class: 'aab__cal' }, [
 					h( 'div', { class: 'aab__month' }, [ this.prevBtn, this.monthLabel, this.nextBtn ] ),
 					this.grid,
@@ -240,6 +252,80 @@
 		if ( this.userTz ) {
 			this.tzNote.textContent = sprintf( this.t.timezone, this.userTz.replace( /_/g, ' ' ) );
 		}
+	};
+
+	// Short "30 min" / "Video call" / location description for a type.
+	Widget.prototype.typeMeta = function ( type ) {
+		var parts = [ sprintf( this.t.minutes, type.duration ) ];
+		if ( type.video ) {
+			parts.push( this.t.video );
+		} else if ( type.location ) {
+			parts.push( type.location );
+		}
+		return parts;
+	};
+
+	Widget.prototype.showPicker = function () {
+		var self = this;
+		this.type = null;
+		this.body.hidden = true;
+		this.typeBar.hidden = true;
+		this.tzNote.hidden = true;
+		this.picker.hidden = false;
+		this.picker.textContent = '';
+		this.picker.appendChild( h( 'h3', { class: 'aab__types-title', text: this.t.pickType } ) );
+		this.types.forEach( function ( type ) {
+			var meta = self.typeMeta( type );
+			self.picker.appendChild(
+				h( 'div', { role: 'listitem' }, [
+					h( 'button', { type: 'button', class: 'aab__type', onclick: function () {
+						self.picked = true;
+						self.pickType( type );
+					} }, [
+						h( 'span', { class: 'aab__type-head' }, [
+							h( 'span', { class: 'aab__type-name', text: type.name } ),
+							h( 'span', { class: 'aab__type-len', text: meta[ 0 ] } ),
+						] ),
+						meta[ 1 ] ? h( 'span', { class: 'aab__type-where', text: meta[ 1 ] } ) : null,
+						type.description ? h( 'span', { class: 'aab__type-desc', text: type.description } ) : null,
+					] ),
+				] )
+			);
+		} );
+	};
+
+	Widget.prototype.pickType = function ( type ) {
+		var self = this;
+		this.type = type;
+		this.picker.hidden = true;
+		this.body.hidden = false;
+		this.tzNote.hidden = false;
+		this.typeBar.textContent = '';
+		this.typeBar.hidden = this.types.length < 2;
+		if ( this.types.length > 1 ) {
+			this.typeBar.appendChild( h( 'button', { type: 'button', class: 'aab__link aab__back', text: '‹ ' + this.t.allTypes, onclick: function () {
+				self.showPicker();
+				var first = self.picker.querySelector( '.aab__type' );
+				if ( first ) {
+					first.focus();
+				}
+			} } ) );
+			this.typeBar.appendChild( h( 'span', { class: 'aab__typebar-name', text: type.name } ) );
+		}
+		this.selected = null;
+		this.slot = null;
+		this.view = 'times';
+		this.notice = '';
+		this.autoAdvance = 2;
+		var now = new Date();
+		this.month = now.getFullYear() + '-' + pad( now.getMonth() + 1 );
+		this.load();
+		// The button that was clicked is gone: move focus to the calendar heading.
+		if ( this.picked ) {
+			this.monthLabel.setAttribute( 'tabindex', '-1' );
+			this.monthLabel.focus( { preventScroll: true } );
+		}
+		this.picked = true;
 	};
 
 	Widget.prototype.monthRange = function ( key ) {
@@ -263,8 +349,9 @@
 
 	Widget.prototype.load = function ( force ) {
 		var self = this;
-		var key = this.month;
-		this.monthLabel.textContent = this.monthFmt.format( parseYmd( key + '-01' ) );
+		var month = this.month;
+		var key = ( this.type ? this.type.id : '' ) + '|' + month;
+		this.monthLabel.textContent = this.monthFmt.format( parseYmd( month + '-01' ) );
 
 		if ( ! force && this.cache[ key ] ) {
 			this.data = this.cache[ key ];
@@ -276,10 +363,17 @@
 		this.root.classList.add( 'aab--loading' );
 		this.render();
 
-		var range = this.monthRange( key );
+		var range = this.monthRange( month );
+		var params = { from: range.from, to: range.to };
+		if ( this.moving ) {
+			params.booking = this.moving.id;
+			params.token = this.moving.token;
+		} else if ( this.type ) {
+			params.type = this.type.id;
+		}
 		var request = this.cfg.demo
 			? Promise.resolve( this.demoData( range ) )
-			: fetch( this.endpoint( 'availability', range ), { credentials: 'same-origin', headers: { Accept: 'application/json' } } )
+			: fetch( this.endpoint( 'availability', params ), { credentials: 'same-origin', headers: { Accept: 'application/json' } } )
 				.then( function ( res ) {
 					return res.json().then( function ( body ) {
 						if ( ! res.ok ) {
@@ -290,7 +384,7 @@
 				} );
 		request
 			.then( function ( body ) {
-				if ( key !== self.month ) {
+				if ( month !== self.month ) {
 					return;
 				}
 				self.cache[ key ] = body;
@@ -302,7 +396,7 @@
 					return body.days[ d ].length > 0;
 				} );
 				// First visit: skip ahead to the first month with open times.
-				if ( ! hasAny && self.autoAdvance > 0 && body.last > self.monthRange( key ).to ) {
+				if ( ! hasAny && self.autoAdvance > 0 && body.last > self.monthRange( month ).to ) {
 					self.shiftMonth( 1, self.autoAdvance - 1 );
 					return;
 				}
@@ -313,7 +407,7 @@
 				self.render();
 			} )
 			.catch( function ( err ) {
-				if ( key !== self.month ) {
+				if ( month !== self.month ) {
 					return;
 				}
 				self.root.classList.remove( 'aab--loading' );
@@ -327,7 +421,8 @@
 		var today = new Date();
 		var first = ymd( new Date( Date.UTC( today.getFullYear(), today.getMonth(), today.getDate() ) ) );
 		var lastD = new Date( Date.UTC( today.getFullYear(), today.getMonth() + 2, today.getDate() ) );
-		var step = Math.max( 15, +this.cfg.duration || 30 ) * 60;
+		var minutes = ( this.type && this.type.duration ) || +this.cfg.duration || 30;
+		var step = Math.max( 15, minutes ) * 60;
 		var days = {};
 		for ( var d = parseYmd( range.from ); ymd( d ) <= range.to; d.setUTCDate( d.getUTCDate() + 1 ) ) {
 			var key = ymd( d );
@@ -343,7 +438,7 @@
 				}
 			}
 		}
-		return { demo: true, duration: +this.cfg.duration || 30, first: first, last: ymd( lastD ), days: days };
+		return { demo: true, duration: minutes, first: first, last: ymd( lastD ), days: days };
 	};
 
 	Widget.prototype.firstOpenDay = function () {
@@ -503,7 +598,7 @@
 	Widget.prototype.renderPanel = function () {
 		this.panel.textContent = '';
 		if ( this.view === 'form' && this.slot ) {
-			return this.renderForm();
+			return this.moving ? this.renderMove() : this.renderForm();
 		}
 		if ( this.view === 'done' ) {
 			return this.renderDone();
@@ -550,6 +645,9 @@
 			list.appendChild( h( 'button', {
 				type: 'button',
 				class: 'aab__time',
+				'aria-current': self.moving && start === self.moving.start ? 'true' : null,
+				title: self.moving && start === self.moving.start ? self.t.currentTime : null,
+				disabled: !! ( self.moving && start === self.moving.start ),
 				text: self.timeFmt.format( new Date( start * 1000 ) ),
 				onclick: function () {
 					self.slot = start;
@@ -575,6 +673,31 @@
 		return h( 'div', { class: 'aab__field' }, [ h( 'label', { for: id, text: label } ), input, error ] );
 	};
 
+	// A booking question as a form field. Field names are "q_<id>", matching server error keys.
+	Widget.prototype.questionField = function ( q ) {
+		var t = this.t;
+		var name = 'q_' + q.id;
+		var id = this.root.id + '-' + name;
+		var label = q.label + ( q.required || q.kind === 'checkbox' ? '' : ' ' + t.optional );
+		var error = h( 'span', { class: 'aab__field-error', id: id + '-error' } );
+		if ( q.kind === 'checkbox' ) {
+			return h( 'div', { class: 'aab__field aab__field--check' }, [
+				h( 'input', { type: 'checkbox', id: id, name: name, value: '1' } ),
+				h( 'label', { for: id, text: q.label } ),
+				error,
+			] );
+		}
+		if ( q.kind === 'select' ) {
+			var select = h( 'select', { id: id, name: name, class: 'aab__input', required: !! q.required }, [
+				h( 'option', { value: '', text: t.choose } ),
+			].concat( ( q.options || [] ).map( function ( o ) {
+				return h( 'option', { value: o, text: o } );
+			} ) ) );
+			return h( 'div', { class: 'aab__field' }, [ h( 'label', { for: id, text: label } ), select, error ] );
+		}
+		return this.field( name, label, q.kind === 'textarea' ? 'textarea' : 'text', { required: !! q.required, maxlength: '2000' } );
+	};
+
 	Widget.prototype.renderForm = function () {
 		var self = this;
 		var t = this.t;
@@ -592,7 +715,13 @@
 		if ( this.cfg.phone === 'optional' || this.cfg.phone === 'required' ) {
 			form.appendChild( this.field( 'phone', this.cfg.phone === 'required' ? t.phoneLabel : t.phoneOpt, 'tel', { autocomplete: 'tel', inputmode: 'tel', required: this.cfg.phone === 'required', maxlength: '40' } ) );
 		}
-		form.appendChild( this.field( 'notes', t.notes, 'textarea', { maxlength: '2000' } ) );
+		var questions = ( this.type && this.type.questions ) || [];
+		questions.forEach( function ( q ) {
+			form.appendChild( self.questionField( q ) );
+		} );
+		if ( ! this.type || this.type.notes !== false ) {
+			form.appendChild( this.field( 'notes', t.notes, 'textarea', { maxlength: '2000' } ) );
+		}
 
 		// Honeypot: hidden from people, tempting to bots.
 		form.appendChild( h( 'div', { class: 'aab__hp', 'aria-hidden': 'true' }, [
@@ -676,6 +805,12 @@
 		if ( this.cfg.phone === 'required' && ! get( 'phone' ).trim() ) {
 			local.phone = t.needPhone;
 		}
+		( ( this.type && this.type.questions ) || [] ).forEach( function ( q ) {
+			var v = get( 'q_' + q.id );
+			if ( q.required && ( q.kind === 'checkbox' ? ! v : ! String( v ).trim() ) ) {
+				local[ 'q_' + q.id ] = q.kind === 'checkbox' ? t.needConsent : ( q.kind === 'select' ? t.needChoice : t.needAnswer );
+			}
+		} );
 		if ( this.cfg.consent && ! get( 'consent' ) ) {
 			local.consent = t.needConsent;
 		}
@@ -701,6 +836,11 @@
 	Widget.prototype.send = function ( form, status, shownAt, get, showErrors, reset ) {
 		var self = this;
 		var t = this.t;
+		var answers = {};
+		( ( this.type && this.type.questions ) || [] ).forEach( function ( q ) {
+			var v = get( 'q_' + q.id );
+			answers[ q.id ] = q.kind === 'checkbox' ? !! v : String( v ).trim();
+		} );
 		var payload = {
 			start: this.slot,
 			name: get( 'name' ).trim(),
@@ -708,6 +848,8 @@
 			notes: get( 'notes' ).trim(),
 			phone: get( 'phone' ).trim(),
 			consent: !! get( 'consent' ),
+			type: this.type ? this.type.id : '',
+			answers: answers,
 			website: get( 'website' ),
 			elapsed: Math.round( ( Date.now() - shownAt ) / 1000 ),
 		};
@@ -736,7 +878,7 @@
 				if ( r.ok ) {
 					self.result = r.body;
 					self.view = 'done';
-					delete self.cache[ self.month ];
+					self.cache = {};
 					self.renderPanel();
 					return;
 				}
@@ -763,9 +905,99 @@
 			} );
 	};
 
+	// Rescheduling: confirm the new time, then move the booking.
+	Widget.prototype.renderMove = function () {
+		var self = this;
+		var t = this.t;
+		var timeText = this.timeFmt.format( new Date( this.slot * 1000 ) );
+		var themed = this.root.classList.contains( 'aab--buttons-theme' ) && this.root.classList.contains( 'aab--wp-buttons' );
+		var status = h( 'p', { class: 'aab__message aab__message--error', role: 'alert', hidden: true } );
+		var button = h( 'button', { type: 'button', class: 'aab__submit' + ( themed ? ' wp-element-button' : '' ), text: sprintf( t.moveTo, timeText ) } );
+		var current = new Date( this.moving.start * 1000 );
+
+		button.addEventListener( 'click', function () {
+			button.disabled = true;
+			button.textContent = t.moving;
+			status.hidden = true;
+			var done = function ( r ) {
+				self.result = { start: r.start, meet: r.meet || '', moved: true };
+				self.moving.start = r.start;
+				self.view = 'done';
+				self.cache = {};
+				self.renderPanel();
+			};
+			if ( self.cfg.demo ) {
+				setTimeout( function () {
+					done( { start: self.slot } );
+				}, 400 );
+				return;
+			}
+			fetch( self.endpoint( 'bookings/' + self.moving.id + '/reschedule' ), {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+				body: JSON.stringify( { start: self.slot, token: self.moving.token } ),
+			} )
+				.then( function ( res ) {
+					return res.json().then( function ( body ) {
+						return { ok: res.ok, status: res.status, body: body };
+					} );
+				} )
+				.then( function ( r ) {
+					if ( r.ok ) {
+						done( r.body );
+						return;
+					}
+					if ( r.status === 409 && r.body && r.body.code === 'aab_slot_taken' ) {
+						self.notice = r.body.message || t.error;
+						self.view = 'times';
+						self.slot = null;
+						self.load( true );
+						return;
+					}
+					status.textContent = ( r.body && r.body.message ) || t.error;
+					status.hidden = false;
+					button.disabled = false;
+					button.textContent = sprintf( t.moveTo, timeText );
+				} )
+				.catch( function () {
+					status.textContent = t.error;
+					status.hidden = false;
+					button.disabled = false;
+					button.textContent = sprintf( t.moveTo, timeText );
+				} );
+		} );
+
+		this.panel.appendChild( h( 'div', { class: 'aab__summary' }, [
+			h( 'h3', { class: 'aab__panel-title', text: this.slotLabel( this.slot ) } ),
+			h( 'button', { type: 'button', class: 'aab__link aab__back', text: t.changeTime, onclick: function () {
+				self.view = 'times';
+				self.renderPanel();
+			} } ),
+		] ) );
+		this.panel.appendChild( h( 'p', { class: 'aab__was' }, [
+			h( 'span', { class: 'aab__was-label', text: t.currentTime + ': ' } ),
+			h( 'del', { text: this.shortDayFmt.format( new Date( Date.UTC( current.getFullYear(), current.getMonth(), current.getDate() ) ) ) + ', ' + this.timeFmt.format( current ) } ),
+		] ) );
+		this.panel.appendChild( status );
+		this.panel.appendChild( button );
+		button.focus( { preventScroll: true } );
+	};
+
 	Widget.prototype.renderDone = function () {
 		var self = this;
 		var r = this.result || {};
+		if ( r.moved ) {
+			var moved = h( 'div', { class: 'aab__done', tabindex: '-1' }, [
+				h( 'p', { class: 'aab__done-badge', text: this.t.moved } ),
+				h( 'h3', { class: 'aab__panel-title', text: this.slotLabel( r.start ) } ),
+				h( 'p', { class: 'aab__done-text', text: this.t.movedText } ),
+				this.moving.manage ? h( 'a', { class: 'aab__link', href: this.moving.manage, text: this.t.backToBooking } ) : null,
+			] );
+			this.panel.appendChild( moved );
+			moved.focus( { preventScroll: true } );
+			return;
+		}
 		var done = h( 'div', { class: 'aab__done', tabindex: '-1' }, [
 			h( 'p', { class: 'aab__done-badge', text: this.t.booked } ),
 			h( 'h3', { class: 'aab__panel-title', text: this.slotLabel( r.start || this.slot ) } ),
@@ -775,7 +1007,11 @@
 				self.view = 'times';
 				self.slot = null;
 				self.selected = null;
-				self.load( true );
+				if ( self.types.length > 1 ) {
+					self.showPicker();
+				} else {
+					self.load( true );
+				}
 			} } ),
 		] );
 		this.panel.appendChild( done );

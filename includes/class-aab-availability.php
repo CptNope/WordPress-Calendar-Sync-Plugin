@@ -65,12 +65,18 @@ final class AAB_Availability {
 	/**
 	 * Open slots for each date in a range.
 	 *
-	 * @param string $from  First date (Y-m-d, site timezone).
-	 * @param string $to    Last date (Y-m-d, inclusive).
-	 * @param bool   $fresh Bypass the busy-time cache.
+	 * @param string     $from    First date (Y-m-d, site timezone).
+	 * @param string     $to      Last date (Y-m-d, inclusive).
+	 * @param bool       $fresh   Bypass the busy-time cache.
+	 * @param array|null $type    Appointment type (null: the first active one).
+	 * @param array|null $exclude A booking being moved: its own time doesn't count as busy.
 	 * @return array<string,int[]>|WP_Error Map of date => list of Unix start times.
 	 */
-	public static function slots( $from, $to, $fresh = false ) {
+	public static function slots( $from, $to, $fresh = false, $type = null, $exclude = null ) {
+		$type = self::resolve_type( $type );
+		if ( ! $type ) {
+			return new WP_Error( 'aab_no_types', __( 'No appointment types are available.', 'anderson-appointment-booking' ) );
+		}
 		list( $first, $last ) = self::window();
 		$from                 = max( $from, $first );
 		$to                   = min( $to, $last );
@@ -78,7 +84,7 @@ final class AAB_Availability {
 			return array();
 		}
 
-		$candidates = self::candidates( $from, $to );
+		$candidates = self::candidates( $from, $to, $type );
 		$all        = array();
 		foreach ( $candidates as $list ) {
 			$all = array_merge( $all, $list );
@@ -87,21 +93,25 @@ final class AAB_Availability {
 			return $candidates;
 		}
 
-		$duration = self::duration_seconds();
+		$duration = self::duration_seconds( $type );
 		$before   = (int) AAB_Settings::get( 'buffer_before' ) * MINUTE_IN_SECONDS;
 		$after    = (int) AAB_Settings::get( 'buffer_after' ) * MINUTE_IN_SECONDS;
 
 		$range_start = min( $all ) - $before;
 		$range_end   = max( $all ) + $duration + $after;
 
-		$busy = self::busy( $range_start, $range_end, $fresh );
+		$busy = self::busy( $range_start, $range_end, $fresh, $exclude );
 		if ( is_wp_error( $busy ) ) {
 			return $busy;
 		}
-		$busy = array_merge( $busy, AAB_Bookings::busy_ranges( $range_start, $range_end ) );
+		// Appointments booked here keep their own free time before and after, so a new booking
+		// can't be squeezed in right after one (Google events only get the new booking's buffers).
+		foreach ( AAB_Bookings::busy_ranges( $range_start - $after, $range_end + $before, $exclude ? (int) $exclude['id'] : 0 ) as $r ) {
+			$busy[] = array( $r[0] - $before, $r[1] + $after );
+		}
 
 		$limit  = (int) AAB_Settings::get( 'daily_limit' );
-		$counts = $limit > 0 ? AAB_Bookings::counts_by_date( $from, $to ) : array();
+		$counts = $limit > 0 ? AAB_Bookings::counts_by_date( $from, $to, $exclude ? (int) $exclude['id'] : 0 ) : array();
 
 		$open = array();
 		foreach ( $candidates as $date => $starts ) {
@@ -123,12 +133,14 @@ final class AAB_Availability {
 	/**
 	 * Is one specific start time bookable right now? Always checks Google live.
 	 *
-	 * @param int $start Unix start time.
+	 * @param int        $start   Unix start time.
+	 * @param array|null $type    Appointment type.
+	 * @param array|null $exclude Booking being moved.
 	 * @return true|WP_Error
 	 */
-	public static function check_slot( $start ) {
+	public static function check_slot( $start, $type = null, $exclude = null ) {
 		$date  = wp_date( 'Y-m-d', $start );
-		$slots = self::slots( $date, $date, true );
+		$slots = self::slots( $date, $date, true, $type, $exclude );
 		if ( is_wp_error( $slots ) ) {
 			return $slots;
 		}
@@ -139,12 +151,24 @@ final class AAB_Availability {
 	}
 
 	/**
+	 * Use the given type, or the first active one.
+	 *
+	 * @param array|null $type Type.
+	 * @return array|null
+	 */
+	private static function resolve_type( $type ) {
+		return is_array( $type ) ? array_merge( AAB_Types::defaults(), $type ) : AAB_Types::first();
+	}
+
+	/**
 	 * Appointment length in seconds.
 	 *
+	 * @param array|null $type Type (null: the first active one).
 	 * @return int
 	 */
-	public static function duration_seconds() {
-		return max( 5, (int) AAB_Settings::get( 'duration' ) ) * MINUTE_IN_SECONDS;
+	public static function duration_seconds( $type = null ) {
+		$type = self::resolve_type( $type );
+		return max( 5, (int) ( $type ? $type['duration'] : AAB_Settings::get( 'duration' ) ) ) * MINUTE_IN_SECONDS;
 	}
 
 	/**
@@ -152,19 +176,20 @@ final class AAB_Availability {
 	 *
 	 * @param string $from First date.
 	 * @param string $to   Last date.
+	 * @param array  $type Type.
 	 * @return array<string,int[]>
 	 */
-	private static function candidates( $from, $to ) {
-		$tz        = wp_timezone();
-		$weekdays  = AAB_Settings::weekdays();
-		$hours     = (array) AAB_Settings::get( 'hours' );
-		$duration  = (int) max( 5, (int) AAB_Settings::get( 'duration' ) );
-		$interval  = (int) max( 5, (int) AAB_Settings::get( 'interval' ) );
-		$earliest  = time() + (int) AAB_Settings::get( 'min_notice' ) * HOUR_IN_SECONDS;
-		$day       = new DateTimeImmutable( $from . ' 00:00:00', $tz );
-		$end       = new DateTimeImmutable( $to . ' 00:00:00', $tz );
-		$out       = array();
-		$guard     = 0;
+	private static function candidates( $from, $to, array $type ) {
+		$tz       = wp_timezone();
+		$weekdays = AAB_Settings::weekdays();
+		$hours    = AAB_Types::hours( $type );
+		$duration = (int) max( 5, (int) $type['duration'] );
+		$interval = (int) max( 5, (int) $type['interval'] );
+		$earliest = time() + (int) AAB_Settings::get( 'min_notice' ) * HOUR_IN_SECONDS;
+		$day      = new DateTimeImmutable( $from . ' 00:00:00', $tz );
+		$end      = new DateTimeImmutable( $to . ' 00:00:00', $tz );
+		$out      = array();
+		$guard    = 0;
 
 		while ( $day <= $end && $guard++ < 400 ) {
 			$date         = $day->format( 'Y-m-d' );
@@ -190,25 +215,58 @@ final class AAB_Availability {
 	/**
 	 * Busy ranges from Google, cached briefly.
 	 *
-	 * @param int  $from  Unix start.
-	 * @param int  $to    Unix end.
-	 * @param bool $fresh Bypass cache.
+	 * @param int        $from    Unix start.
+	 * @param int        $to      Unix end.
+	 * @param bool       $fresh   Bypass cache.
+	 * @param array|null $exclude Booking whose own event should not count as busy.
 	 * @return array|WP_Error
 	 */
-	private static function busy( $from, $to, $fresh ) {
+	private static function busy( $from, $to, $fresh, $exclude = null ) {
 		$calendars = self::conflict_calendars();
-		$key       = 'aab_busy_' . md5( $from . '|' . $to . '|' . implode( ',', $calendars ) . '|' . (int) get_option( self::GENERATION_OPTION, 0 ) );
+		$skip      = $exclude && ! empty( $exclude['event_id'] ) && 'confirmed' === $exclude['status']
+			? array(
+				'calendar' => (string) $exclude['calendar_id'],
+				'start'    => (int) $exclude['start'],
+				'end'      => (int) $exclude['end'],
+			)
+			: null;
+		$key       = 'aab_busy_' . md5( $from . '|' . $to . '|' . implode( ',', $calendars ) . '|' . (int) get_option( self::GENERATION_OPTION, 0 ) . '|' . ( $skip ? implode( ',', $skip ) : '' ) );
 		if ( ! $fresh ) {
 			$cached = get_transient( $key );
 			if ( is_array( $cached ) ) {
 				return $cached;
 			}
 		}
-		$busy = AAB_Google::busy( $from, $to, $calendars );
+		$busy = AAB_Google::busy( $from, $to, $calendars, $skip );
 		if ( ! is_wp_error( $busy ) ) {
 			set_transient( $key, $busy, self::CACHE_TTL );
 		}
 		return $busy;
+	}
+
+	/**
+	 * Remove [start, end) from a list of ranges.
+	 *
+	 * @param array $ranges Ranges.
+	 * @param int   $start  Start.
+	 * @param int   $end    End.
+	 * @return array
+	 */
+	public static function subtract( array $ranges, $start, $end ) {
+		$out = array();
+		foreach ( $ranges as $r ) {
+			if ( $r[1] <= $start || $r[0] >= $end ) {
+				$out[] = $r;
+				continue;
+			}
+			if ( $r[0] < $start ) {
+				$out[] = array( $r[0], $start );
+			}
+			if ( $r[1] > $end ) {
+				$out[] = array( $end, $r[1] );
+			}
+		}
+		return $out;
 	}
 
 	/**

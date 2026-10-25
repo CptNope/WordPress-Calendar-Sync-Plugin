@@ -77,10 +77,16 @@
 				return;
 			}
 			var cfg = Object.assign( {}, data.config, { heading: a.heading || '', demo: true } );
+			if ( a.type ) {
+				var only = ( data.config.types || [] ).filter( function ( t ) {
+					return t.id === a.type;
+				} );
+				cfg.types = only.length ? only : cfg.types;
+			}
 			node.className = 'aab';
 			node.id = node.id || 'aab-editor-' + Math.random().toString( 36 ).slice( 2, 8 );
 			window.AABBooking.mount( node, cfg );
-		}, [ a.heading ] );
+		}, [ a.heading, a.type ] );
 
 		// Restyle live.
 		useEffect( function () {
@@ -145,7 +151,15 @@
 							value: a.heading,
 							onChange: set( 'heading' ),
 						} ),
-						el( 'p', { className: 'components-base-control__help' }, __( 'Hours and calendars are set under Appointments → Settings. The preview uses sample times.', 'anderson-appointment-booking' ) )
+						( data.types || [] ).length > 1 && el( components.SelectControl, {
+							label: __( 'Appointment types', 'anderson-appointment-booking' ),
+							value: a.type,
+							options: [ opt( '', __( 'All visible types (visitor picks)', 'anderson-appointment-booking' ) ) ].concat( ( data.types || [] ).map( function ( t ) {
+								return opt( t.id, t.name );
+							} ) ),
+							onChange: set( 'type' ),
+						} ),
+						el( 'p', { className: 'components-base-control__help' }, __( 'Types, hours and calendars are set under Appointments. The preview uses sample times.', 'anderson-appointment-booking' ) )
 					),
 					el(
 						components.PanelBody,

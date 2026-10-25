@@ -4,7 +4,7 @@ Tags: appointment, booking, google calendar, scheduling, calendar
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -15,17 +15,20 @@ Let visitors book appointments with you. Availability comes live from your Googl
 Anderson Appointment Booking puts a booking calendar on your site that knows when you're actually free. It reads free/busy times from your Google Calendar, offers only open slots within the hours you set, and adds each booking to your calendar — with a Google Meet link and a guest invite if you like.
 
 * Live availability from one or more Google calendars
-* Weekly hours with breaks, appointment length, buffers, minimum notice, booking window and daily cap
+* Appointment types, each with its own length, hours, location, video call and booking questions
+* Custom booking questions: short answer, long answer, dropdown, checkbox
+* Visitors can reschedule or cancel from a link in every email, with a cut-off you choose
+* Weekly hours with breaks, buffers, minimum notice, booking window and daily cap
 * Optional Google Meet link and calendar invite for the visitor
 * Atomic slot locking and a live re-check at booking time to prevent double bookings
 * Follows changes made in Google Calendar: deleted or moved appointments update on the site
-* Confirmation (with calendar file), reminder and change emails; self-service cancel link; owner notifications
+* Confirmation (with calendar file), reminder and change emails; owner notifications
 * Days off, per-person booking cap, optional or required phone number
 * Site Health checks, an email alert if Google access breaks, CSV export, automatic record clean-up
 * Times shown in the visitor's own timezone
 * Matches your theme automatically (block and classic themes): fonts, colors, buttons, fields, corners
 * Appearance settings with a live preview inside your theme, per-block overrides, shortcode attributes and CSS variables
-* Block and shortcode: `[anderson_booking]`
+* Block and shortcode: `[anderson_booking]`, or one type with `[anderson_booking type="consult"]`
 * Narrow Google permissions; credentials encrypted at rest
 * No build tools, no Composer, no extra services
 
@@ -73,11 +76,27 @@ All-day events are marked "Free" in Google Calendar by default, so they don't bl
 
 Booking works, but reminders and syncing with changes made in Google Calendar need the hourly task. Add a server cron job that requests wp-cron.php every few minutes. Tools → Site Health tells you if the task isn't running.
 
+= Can visitors reschedule? =
+
+Yes. Every email links to a page where they can pick a new time (the same calendar, with their current slot treated as free) or cancel. The Google Calendar event is moved in place, so the Meet link stays the same. You can stop online changes within N hours of the appointment and limit how many times one booking can move.
+
+= Can I offer different kinds of appointments? =
+
+Yes. Under Appointments → Appointment types, add as many as you like, each with its own length, start-time spacing, hours, location, video setting and questions. Visitors pick a type first. Use type="…" in the shortcode, or the block setting, to show just one.
+
 = Does it work with page caching? =
 
 Yes. Times are loaded through the REST API when the page opens, so cached pages still show current availability.
 
 == Changelog ==
+
+= 1.3.0 =
+* New: Appointment types with their own length, start-time spacing, hours, location, video-call setting and questions. Visitors pick a type, then a time.
+* New: Custom booking questions (short answer, long answer, dropdown, checkbox), included in the Google event, emails, booking record, CSV and privacy export.
+* New: Visitors can reschedule from a page linked in every email; the Google event moves in place. Settings for a change cut-off and a reschedule limit.
+* New: Shortcode type="…" and a block setting to show one appointment type.
+* Fix: Appointments booked through the plugin now keep their free time before and after, so nothing can be booked right up against them.
+* Upgrading creates one appointment type from your existing settings. Old cancel links keep working.
 
 = 1.2.0 =
 * New: Appointments deleted or moved in Google Calendar are cancelled or updated on the site, and the visitor is emailed.

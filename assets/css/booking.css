@@ -614,3 +614,178 @@
 .aab-cancel .aab-cancel__home {
 	color: var(--aab-accent);
 }
+
+/* Appointment type picker --------------------------------------------------- */
+
+.aab .aab__types {
+	display: grid;
+	gap: var(--aab-gap);
+}
+
+.aab .aab__types[hidden],
+.aab .aab__typebar[hidden],
+.aab .aab__body[hidden],
+.aab .aab__tz[hidden] {
+	display: none;
+}
+
+.aab .aab__types-title {
+	margin: 0 0 4px;
+	font-family: var(--aab-heading-font);
+	font-size: 1.05em;
+	font-weight: 600;
+	letter-spacing: normal;
+	text-transform: none;
+}
+
+.aab:not(#aab-x) .aab__type {
+	display: grid;
+	gap: 3px;
+	width: 100%;
+	margin: 0;
+	padding: calc(14px * var(--aab-space)) calc(16px * var(--aab-space));
+	border: 1px solid var(--aab-line);
+	border-left: 3px solid var(--aab-accent);
+	border-radius: var(--aab-r-ctl);
+	background: var(--aab-surface);
+	color: inherit;
+	font: inherit;
+	line-height: 1.35;
+	letter-spacing: normal;
+	text-align: left;
+	text-transform: none;
+	text-decoration: none;
+	box-shadow: none;
+	cursor: pointer;
+	-webkit-appearance: none;
+	appearance: none;
+}
+
+.aab:not(#aab-x) .aab__type:hover {
+	border-color: var(--aab-accent);
+	background: var(--aab-tint);
+	color: inherit;
+}
+
+.aab .aab__type-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.aab .aab__type-name {
+	font-family: var(--aab-heading-font);
+	font-weight: 600;
+}
+
+.aab .aab__type-len {
+	flex: none;
+	font-variant-numeric: tabular-nums;
+	color: var(--aab-muted);
+	font-size: 0.9em;
+}
+
+.aab .aab__type-where,
+.aab .aab__type-desc {
+	color: var(--aab-muted);
+	font-size: 0.9em;
+}
+
+.aab .aab__type-desc {
+	color: inherit;
+	opacity: 0.85;
+}
+
+.aab .aab__typebar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 14px;
+	margin-bottom: 10px;
+}
+
+.aab .aab__typebar-name {
+	font-weight: 600;
+}
+
+.aab .aab__month-label:focus {
+	outline: none;
+}
+
+/* Rescheduling -------------------------------------------------------------- */
+
+.aab:not(#aab-x) .aab__time:disabled {
+	border-style: dashed;
+	color: var(--aab-muted);
+	background: transparent;
+	cursor: default;
+}
+
+.aab .aab__was {
+	margin: 0 0 calc(14px * var(--aab-space));
+	color: var(--aab-muted);
+	font-size: 0.9em;
+}
+
+.aab .aab__field select.aab__input {
+	min-height: 2.5em;
+}
+
+/* Manage page ------------------------------------------------------------------ */
+
+.aab.aab-manage--wide {
+	--aab-max-width: 820px;
+	border: 0;
+	background: transparent;
+	padding: 0;
+}
+
+.aab-manage .aab-manage__details {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 6px 16px;
+	margin: 0 0 20px;
+}
+
+.aab-manage .aab-manage__details dt {
+	color: var(--aab-muted);
+}
+
+.aab-manage .aab-manage__details dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.aab-manage .aab-manage__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px 20px;
+}
+
+.aab-manage a.aab-manage__primary {
+	display: inline-block;
+	text-decoration: none;
+}
+
+.aab-manage .aab-manage__secondary {
+	color: var(--aab-error);
+}
+
+.aab-manage .aab-manage__current {
+	margin: -4px 0 16px;
+	color: var(--aab-muted);
+}
+
+.aab-manage .aab {
+	margin-top: 0;
+}
+
+.aab-manage a.aab-manage__primary:not(.wp-element-button) {
+	padding: 10px 18px;
+	border-radius: var(--aab-r-ctl);
+	background: var(--aab-accent);
+	color: var(--aab-on-accent);
+	font-weight: 600;
+}
