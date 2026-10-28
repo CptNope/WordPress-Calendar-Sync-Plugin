@@ -610,3 +610,7 @@ No build step: edit and reload. CI (GitHub Actions) checks PHP syntax on 7.4 to 
 ## License
 
 MIT © Jeremy Anderson
+
+---
+
+Built by [Jeremy Anderson Tech](https://jeremyanderson.tech/), a web development and security practice in Shrewsbury, MA. [Services](https://jeremyanderson.tech/services/)
